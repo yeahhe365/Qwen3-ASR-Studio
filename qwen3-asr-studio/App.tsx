@@ -290,7 +290,8 @@ export default function App() {
     }
 
     if (result.transcription) {
-      setNotification({ message: '输入法模式识别成功', type: 'success' });
+      // 画中画窗口已经完成了复制，这里只显示通知
+      setNotification({ message: '输入法模式识别成功，已复制到剪贴板', type: 'success' });
     }
 
     if (result.transcription) {
