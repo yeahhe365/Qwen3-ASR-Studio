@@ -59,6 +59,22 @@ export const PipView: React.FC<PipViewProps> = ({
             
             if (result.transcription) {
                 setMessage(result.transcription);
+                
+                // 输入法模式复制结果到剪贴板
+                try {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = result.transcription;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                } catch (copyError) {
+                    console.error('复制失败:', copyError);
+                }
+                
                 onTranscriptionResult({
                     transcription: result.transcription,
                     detectedLanguage: result.detectedLanguage,
