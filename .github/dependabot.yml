@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /aliyun-api
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /modelscope-api
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /qwen3-asr-studio
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
