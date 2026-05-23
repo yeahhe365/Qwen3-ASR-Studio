@@ -1,4 +1,4 @@
-# Qwen3-ASR ModelScope API
+# ASR Studio ModelScope API
 
 This directory contains a Next.js API server for calling the Qwen3-ASR ModelScope / Gradio deployment.
 

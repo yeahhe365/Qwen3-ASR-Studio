@@ -1,4 +1,4 @@
-# Qwen3-ASR Aliyun API
+# ASR Studio Aliyun API
 
 This directory contains a Next.js API server for forwarding transcription requests to Aliyun Bailian / DashScope.
 

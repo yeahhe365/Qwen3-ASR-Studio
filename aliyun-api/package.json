@@ -1,5 +1,5 @@
 {
-  "name": "qwen3-asr-aliyun-api",
+  "name": "asr-studio-aliyun-api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
