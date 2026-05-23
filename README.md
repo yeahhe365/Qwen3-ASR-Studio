@@ -77,8 +77,9 @@
     cd Qwen3-ASR-Studio
     ```
 
-2.  **安装依赖**
+2.  **进入前端项目并安装依赖**
     ```bash
+    cd qwen3-asr-studio
     pnpm install
     # 或者使用 npm
     # npm install
@@ -95,25 +96,20 @@
 
 ## 📁 项目结构
 
-```
+```text
 .
-├── public/                # 静态资源
-├── src/
-│   ├── components/        # 可复用的 React 组件
-│   │   ├── icons/         # SVG 图标组件
-│   │   └── ...
-│   ├── services/          # 业务逻辑服务
-│   │   ├── audioService.ts # 音频处理（压缩等）
-│   │   ├── cacheService.ts # IndexedDB 缓存管理
-│   │   └── gradioService.ts# 与 Gradio API 的交互
-│   ├── types/             # TypeScript 类型定义
+├── qwen3-asr-studio/      # Vite + React 前端应用
+│   ├── components/        # 可复用 React 组件与图标
+│   ├── services/          # ASR、音频处理、IndexedDB 缓存服务
 │   ├── App.tsx            # 主应用组件
-│   ├── index.css          # 全局样式
-│   └── index.tsx          # React 应用入口
-├── index.html             # HTML 主页面
-├── package.json           # 项目依赖与脚本配置
-└── README.md              # 就是您正在阅读的这个文件
+│   └── package.json       # 前端依赖与脚本
+├── modelscope-api/        # ModelScope / Gradio API 示例服务
+├── aliyun-api/            # 阿里云百炼 / DashScope API 示例服务
+├── README.md              # 中文说明
+└── README.en.md           # English documentation
 ```
+
+如需运行后端示例，请分别进入 `modelscope-api` 或 `aliyun-api` 目录执行 `npm install` 和 `npm run dev`。
 
 ## 🤝 如何贡献
 
@@ -139,4 +135,3 @@
 ## 友链
 
 - [Linux.do](https://linux.do/)：也称 L 站，是一个活跃的中文技术社区，围绕 AI、软件开发、资源分享与前沿资讯展开讨论；社区愿景是“新的理想型社区”，社区文化是“真诚、友善、团结、专业，共建你我引以为荣之社区”。
-

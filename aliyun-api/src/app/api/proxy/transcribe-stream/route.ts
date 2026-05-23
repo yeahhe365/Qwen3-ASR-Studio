@@ -70,13 +70,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Starting proxy streaming transcription process...')
-    console.log('Audio file:', audioFile ? audioFile.name : 'None')
-    console.log('Audio URL:', audioUrl || 'None')
-    console.log('Context:', context || 'None')
-    console.log('Enable ITN:', enableItn)
-    console.log('Language:', language || 'Auto-detect')
-
     let audioInput: string
 
     if (audioFile) {
@@ -88,11 +81,9 @@ export async function POST(request: NextRequest) {
       // Create a data URL
       audioInput = `data:${mimeType};base64,${base64}`
       
-      console.log('File converted to data URL, size:', buffer.length, 'bytes')
     } else {
       // Use URL directly for remote files
       audioInput = audioUrl
-      console.log('Using remote audio URL:', audioUrl)
     }
 
     // Prepare the request body for DashScope HTTP API
@@ -124,8 +115,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('Sending streaming request to DashScope API...')
-
     // Create a readable stream for SSE
     const stream = new ReadableStream({
       async start(controller) {
@@ -141,8 +130,6 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify(requestBody)
           })
-
-          console.log('API Response status:', response.status)
 
           if (!response.ok) {
             const errorText = await response.text()
@@ -215,10 +202,11 @@ export async function POST(request: NextRequest) {
           }
         } catch (error) {
           console.error('Streaming error:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Streaming failed'
           const errorData = {
             success: false,
-            error: error instanceof Error ? error.message : 'Streaming failed',
-            details: error.toString()
+            error: errorMessage,
+            details: error instanceof Error ? error.message : String(error)
           }
           controller.enqueue(`data: ${JSON.stringify(errorData)}\n\n`)
           controller.close()
@@ -239,12 +227,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Proxy streaming transcription error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Streaming transcription failed'
     
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error instanceof Error ? error.message : 'Streaming transcription failed',
-        details: error.toString()
+        error: errorMessage,
+        details: error instanceof Error ? error.message : String(error)
       }),
       { 
         status: 500,

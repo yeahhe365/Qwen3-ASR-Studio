@@ -71,14 +71,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Starting proxy transcription process...')
-    console.log('Audio file:', audioFile ? audioFile.name : 'None')
-    console.log('Audio URL:', audioUrl || 'None')
-    console.log('Context:', context || 'None')
-    console.log('Enable ITN:', enableItn)
-    console.log('Language:', language || 'Auto-detect')
-    console.log('Stream mode:', stream)
-
     let audioInput: string
 
     if (audioFile) {
@@ -90,11 +82,9 @@ export async function POST(request: NextRequest) {
       // Create a data URL
       audioInput = `data:${mimeType};base64,${base64}`
       
-      console.log('File converted to data URL, size:', buffer.length, 'bytes')
     } else {
       // Use URL directly for remote files
       audioInput = audioUrl
-      console.log('Using remote audio URL:', audioUrl)
     }
 
     // Prepare the request body for DashScope HTTP API
@@ -126,8 +116,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('Sending request to DashScope API...')
-
     // Make the API call to DashScope HTTP API
     const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', {
       method: 'POST',
@@ -138,8 +126,6 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify(requestBody)
     })
-
-    console.log('API Response status:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -160,7 +146,7 @@ export async function POST(request: NextRequest) {
             }
           }
         )
-      } catch (parseError) {
+      } catch {
         return NextResponse.json(
           { 
             success: false, 
@@ -178,7 +164,6 @@ export async function POST(request: NextRequest) {
     }
 
     const responseText = await response.text()
-    console.log('Raw API Response:', responseText)
 
     let data
     try {
@@ -255,12 +240,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Proxy transcription error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Transcription failed'
     
     return NextResponse.json(
       { 
         success: false,
-        error: error instanceof Error ? error.message : 'Transcription failed',
-        details: error.toString()
+        error: errorMessage,
+        details: error instanceof Error ? error.message : String(error)
       },
       { 
         status: 500,

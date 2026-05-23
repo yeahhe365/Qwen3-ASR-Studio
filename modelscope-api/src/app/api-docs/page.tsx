@@ -1,6 +1,4 @@
 'use client';
-
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
 export default function APIDocsPage() {
-  const [proxyUrl, setProxyUrl] = useState('');
   const { toast } = useToast();
 
   // 获取当前页面的完整URL

@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Direct HTTP API implementation to avoid SDK issues
 export async function POST(request: NextRequest) {
-  let tempFilePath: string | null = null
-  
   try {
     const formData = await request.formData()
     const apiKey = formData.get('apiKey') as string
@@ -19,12 +17,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Audio file or URL is required' }, { status: 400 })
     }
 
-    console.log('Starting transcription process...')
-    console.log('API Key provided:', apiKey ? 'Yes' : 'No')
-    console.log('Audio file:', audioFile ? audioFile.name : 'None')
-    console.log('Audio URL:', audioUrl || 'None')
-    console.log('Context:', context || 'None')
-
     let audioInput: string
 
     if (audioFile) {
@@ -39,11 +31,9 @@ export async function POST(request: NextRequest) {
       // Create a data URL
       audioInput = `data:${mimeType};base64,${base64}`
       
-      console.log('File converted to data URL, size:', buffer.length, 'bytes')
     } else {
       // Use URL directly for remote files
       audioInput = audioUrl
-      console.log('Using remote audio URL:', audioUrl)
     }
 
     // Prepare the request body for DashScope HTTP API
@@ -74,9 +64,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('Sending request to DashScope API...')
-    console.log('Request body:', JSON.stringify(requestBody, null, 2))
-
     // Make the API call to DashScope HTTP API
     const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', {
       method: 'POST',
@@ -88,9 +75,6 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(requestBody)
     })
 
-    console.log('API Response status:', response.status)
-    console.log('API Response headers:', Object.fromEntries(response.headers.entries()))
-
     if (!response.ok) {
       const errorText = await response.text()
       console.error('DashScope API error response:', errorText)
@@ -98,31 +82,25 @@ export async function POST(request: NextRequest) {
       try {
         const errorJson = JSON.parse(errorText)
         throw new Error(`API Error: ${errorJson.message || errorJson.error || 'Unknown error'}`)
-      } catch (parseError) {
+      } catch {
         throw new Error(`API Error (${response.status}): ${errorText}`)
       }
     }
 
     const responseText = await response.text()
-    console.log('Raw API Response:', responseText)
 
     let data
     try {
       data = JSON.parse(responseText)
     } catch (parseError) {
       console.error('Failed to parse API response as JSON:', parseError)
-      console.error('Response text:', responseText)
       throw new Error('Invalid JSON response from API')
     }
-
-    console.log('Parsed API Response:', JSON.stringify(data, null, 2))
 
     // Extract the transcription result
     if (data.output && data.output.choices && data.output.choices.length > 0) {
       const choice = data.output.choices[0]
       const content = choice.message.content
-
-      console.log('Message content:', content)
 
       // Find the text content in the response
       let text = ''
@@ -133,13 +111,7 @@ export async function POST(request: NextRequest) {
         const textContent = content.find(item => item.text)
         if (textContent) {
           text = textContent.text
-          console.log('Found text content:', text)
         }
-      }
-
-      // Try to extract language and confidence from the response if available
-      if (data.usage) {
-        console.log('Usage info:', data.usage)
       }
 
       // Check if there's additional ASR information in the response
@@ -147,7 +119,6 @@ export async function POST(request: NextRequest) {
         const asrResult = choice.message.asr_result
         language = asrResult.language
         confidence = asrResult.confidence
-        console.log('ASR result:', asrResult)
       }
 
       return NextResponse.json({
@@ -163,19 +134,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Transcription error:', error)
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available')
-    
+    const errorMessage = error instanceof Error ? error.message : 'Transcription failed'
+
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Transcription failed',
-        details: error.toString(),
-        stack: error instanceof Error ? error.stack : undefined,
+        error: errorMessage,
+        details: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString()
       },
       { status: 500 }
     )
-  } finally {
-    // Note: For base64 approach, we don't need to clean up temporary files
-    // If we were using temporary files, we would clean them up here
   }
 }

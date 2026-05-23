@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import * as dashscope from 'dashscope'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,33 +8,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'API Key is required' }, { status: 400 })
     }
 
-    // Set API key
-    dashscope.apiKey = apiKey
-
-    // Test with a simple text conversation first
-    const response = await dashscope.Generation.call({
-      model: 'qwen-turbo',
-      messages: [
-        { role: 'user', content: 'Hello, please respond with "API test successful"' }
-      ]
+    const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'X-DashScope-SSE': 'disable',
+      },
+      body: JSON.stringify({
+        model: 'qwen-turbo',
+        input: {
+          messages: [
+            { role: 'user', content: 'Hello, please respond with "API test successful"' },
+          ],
+        },
+        parameters: {
+          result_format: 'message',
+        },
+      }),
     })
 
-    console.log('Test API Response:', JSON.stringify(response, null, 2))
+    const responseBody = await response.json()
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: responseBody.message || responseBody.error || 'DashScope API connection test failed',
+          response: responseBody,
+        },
+        { status: response.status }
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      response: response,
+      response: responseBody,
       message: 'DashScope API connection test successful'
     })
 
   } catch (error) {
     console.error('DashScope test error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Test failed'
     
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Test failed',
-        details: error.toString(),
-        stack: error instanceof Error ? error.stack : undefined
+        error: errorMessage,
+        details: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
     )

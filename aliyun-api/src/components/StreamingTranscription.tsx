@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Square, Play, Text, AlertCircle } from 'lucide-react'
+import { Square, Play, Text, AlertCircle } from 'lucide-react'
 
 interface StreamingTranscriptionProps {
   apiKey: string
@@ -34,6 +34,7 @@ export default function StreamingTranscription({
   const [currentText, setCurrentText] = useState('')
   const [status, setStatus] = useState('准备就绪')
   const eventSourceRef = useRef<EventSource | null>(null)
+  const finalTextRef = useRef('')
 
   const startStreaming = async () => {
     if (!apiKey.trim()) {
@@ -48,6 +49,7 @@ export default function StreamingTranscription({
 
     setIsStreaming(true)
     setCurrentText('')
+    finalTextRef.current = ''
     setStatus('正在连接...')
 
     try {
@@ -136,6 +138,7 @@ export default function StreamingTranscription({
         if (done) {
           setStatus('转录完成')
           setIsStreaming(false)
+          onComplete(finalTextRef.current)
           break
         }
 
@@ -155,8 +158,10 @@ export default function StreamingTranscription({
                     // Stream completed
                     setIsStreaming(false)
                     setStatus('转录完成')
+                    onComplete(finalTextRef.current)
                   } else if (parsed.text) {
                     // New text chunk received
+                    finalTextRef.current = parsed.text
                     setCurrentText(parsed.text)
                     onResult(parsed.text)
                   }

@@ -19,10 +19,15 @@ A modern Web UI for Qwen ASR with recording, PWA support, local caching, and fas
 
 ## Quick Start
 
-- Enter `qwen3-asr-studio`.
-- Run `npm install`.
-- Run `npm run dev` to start the frontend.
-- For backend APIs, inspect `modelscope-api` or `aliyun-api`.
+```bash
+git clone https://github.com/yeahhe365/Qwen3-ASR-Studio.git
+cd Qwen3-ASR-Studio/qwen3-asr-studio
+npm install
+npm run dev
+```
+
+The frontend development server normally starts at `http://localhost:5173`.
+For backend examples, enter `modelscope-api` or `aliyun-api` and run `npm install && npm run dev`.
 
 ## Configuration
 
@@ -37,9 +42,9 @@ A modern Web UI for Qwen ASR with recording, PWA support, local caching, and fas
 
 ## Project Structure
 
-- `qwen3-asr-studio`
-- `modelscope-api`
-- `aliyun-api`
+- `qwen3-asr-studio`: Vite + React frontend.
+- `modelscope-api`: Next.js API example for the ModelScope / Gradio deployment.
+- `aliyun-api`: Next.js API example for Aliyun Bailian / DashScope.
 
 ## Contributing
 

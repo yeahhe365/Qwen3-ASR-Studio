@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    console.log('Testing Gradio connection...');
-    
     // 简单的GET请求测试
     const response = await fetch('https://qwen-qwen3-asr-demo.ms.show/', {
       method: 'GET',
@@ -17,7 +15,6 @@ export async function GET() {
     }
     
     const html = await response.text();
-    console.log('Gradio page loaded successfully, length:', html.length);
     
     return NextResponse.json({
       success: true,
@@ -28,13 +25,12 @@ export async function GET() {
     
   } catch (error) {
     console.error('Gradio connection test failed:', error);
-    console.error('Error details:', error instanceof Error ? error.stack : 'No stack trace');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     return NextResponse.json(
       { 
         error: 'Gradio connection test failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        details: errorMessage
       },
       { status: 500 }
     );

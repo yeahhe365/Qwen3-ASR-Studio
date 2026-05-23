@@ -15,16 +15,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Processing ASR request...', { 
-      hasAudio: !!audio_file, 
-      context, 
-      language, 
-      enableITN: enable_itn 
-    });
-
     // 连接到Gradio服务器
     const client = await Client.connect("https://qwen-qwen3-asr-demo.ms.show/");
-    console.log('Connected to Gradio server');
 
     // 准备音频文件数据
     let gradioFile;
@@ -45,8 +37,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Calling Gradio API...');
-    
     // 调用Gradio API
     const result = await client.predict("/asr_inference", {
       audio_file: gradioFile,
@@ -54,8 +44,6 @@ export async function POST(request: NextRequest) {
       language: language,
       enable_itn: enable_itn,
     });
-
-    console.log('Gradio API response:', result);
 
     // 返回结果
     return NextResponse.json({
@@ -65,13 +53,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('ASR Inference Error:', error);
-    console.error('Error details:', error instanceof Error ? error.stack : 'No stack trace');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     return NextResponse.json(
       { 
         error: 'Failed to process ASR inference',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        details: errorMessage
       },
       { status: 500 }
     );

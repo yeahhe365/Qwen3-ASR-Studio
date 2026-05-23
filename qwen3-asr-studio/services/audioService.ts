@@ -87,7 +87,6 @@ export const compressAudio = (
       const originalAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
       
       if (originalAudioBuffer.sampleRate <= targetSampleRate && originalAudioBuffer.numberOfChannels === 1) {
-          console.log("Audio is already compressed enough. Skipping.");
           await audioContext.close();
           return resolve(inputFile);
       }
@@ -109,9 +108,6 @@ export const compressAudio = (
       const wavBlob = bufferToWav(resampledBuffer);
       const newFileName = inputFile.name.replace(/\.[^/.]+$/, "") + `.wav`;
       const compressedFile = new File([wavBlob], newFileName, { type: 'audio/wav' });
-
-      console.log(`Original size: ${(inputFile.size / 1024).toFixed(2)} KB`);
-      console.log(`Compressed size: ${(compressedFile.size / 1024).toFixed(2)} KB`);
       
       await audioContext.close();
       resolve(compressedFile);

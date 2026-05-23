@@ -6,7 +6,6 @@ export async function POST(request: NextRequest) {
     const apiKey = formData.get('apiKey') as string
     const audioFile = formData.get('audio') as File | null
     const audioUrl = formData.get('audioUrl') as string
-    const context = formData.get('context') as string
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API Key is required' }, { status: 400 })
@@ -20,10 +19,6 @@ export async function POST(request: NextRequest) {
     // In a real implementation, you would need to handle file uploads properly
     // and make the actual API call to DashScope
     
-    console.log('Simulating transcription for:', audioFile ? audioFile.name : audioUrl)
-    console.log('Context:', context)
-    console.log('API Key provided:', apiKey ? 'Yes' : 'No')
-
     // Simulate API processing delay
     await new Promise(resolve => setTimeout(resolve, 2000))
 
@@ -38,12 +33,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Transcription error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Transcription failed'
     
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Transcription failed',
-        details: error.toString(),
-        stack: error instanceof Error ? error.stack : undefined
+        error: errorMessage,
+        details: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
     )

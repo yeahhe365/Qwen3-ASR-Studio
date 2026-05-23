@@ -1,10 +1,10 @@
 
 import { Client } from "@gradio/client";
-import type { GradioClient, PredictReturn } from "@gradio/client";
 import { Language, ApiProvider } from "../types";
+import { BAILIAN_API_URL } from "../constants";
 
 const SPACE_ID = "Qwen/Qwen3-ASR-Demo";
-let client: Promise<GradioClient>;
+let client: Promise<Client>;
 
 async function getClient() {
   if (!client) {
@@ -15,7 +15,6 @@ async function getClient() {
 
 const MAX_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 2000;
-const BAILIAN_API_URL = 'https://r0vrc7kjd4q0-deploy.space.z.ai/api/proxy/transcribe';
 
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -102,7 +101,7 @@ const transcribeWithBailian = async (
         throw error;
       }
       const delay = INITIAL_BACKOFF_MS * Math.pow(2, i);
-      console.log(`Transcription attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
+      console.warn(`Transcription attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
       onProgress(`识别出错，将在 ${delay / 1000} 秒后重试...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -187,7 +186,7 @@ const transcribeWithModelScope = async (
         throw error;
       }
       const delay = INITIAL_BACKOFF_MS * Math.pow(2, i);
-      console.log(`Transcription attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
+      console.warn(`Transcription attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
       onProgress(`识别出错，将在 ${delay / 1000} 秒后重试...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -236,7 +235,7 @@ export const loadExample = async (
       const attempt = i + 1;
       onProgress(attempt > 1 ? `正在进行第 ${attempt} 次尝试加载示例...` : '正在加载示例...');
       
-      const result: PredictReturn = await app.predict(endpoint, {});
+      const result = await app.predict(endpoint, {});
 
       if (result.data && Array.isArray(result.data) && result.data.length >= 2) {
         const fileData = result.data[0] as GradioFile;
@@ -266,7 +265,7 @@ export const loadExample = async (
         throw error;
       }
       const delay = INITIAL_BACKOFF_MS * Math.pow(2, i);
-      console.log(`Loading example attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
+      console.warn(`Loading example attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
       onProgress(`加载示例出错，将在 ${delay / 1000} 秒后重试...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }

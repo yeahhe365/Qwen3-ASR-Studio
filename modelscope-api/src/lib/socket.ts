@@ -2,7 +2,7 @@ import { Server } from 'socket.io';
 
 export const setupSocket = (io: Server) => {
   io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
+    console.info('Client connected:', socket.id);
     
     // Handle messages
     socket.on('message', (msg: { text: string; senderId: string }) => {
@@ -16,7 +16,7 @@ export const setupSocket = (io: Server) => {
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id);
+      console.info('Client disconnected:', socket.id);
     });
 
     // Send welcome message

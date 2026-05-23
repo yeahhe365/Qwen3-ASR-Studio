@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Qwen3-ASR Studio Frontend
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1EJBCKPmIYHK6blRiW-s03dU-tdkeMz0q
+This directory contains the Vite + React frontend for Qwen3-ASR Studio.
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev
+```
 
+The development server normally starts at `http://localhost:5173`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Project Layout
+
+```text
+.
+├── components/      React UI components and local SVG icons
+├── services/        ASR, audio, and IndexedDB helpers
+├── App.tsx          Main application shell
+├── index.tsx        React entry point
+├── manifest.json    PWA manifest
+└── sw.js            Service worker
+```
+
+## Backend Configuration
+
+The app can call either the ModelScope proxy API or the Aliyun Bailian proxy API. Configure provider, endpoint, and API key from the in-app settings panel.

@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+build/
+.next/
+out/
+
+# environment
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# local data
+*.db
+*.sqlite
+*.sqlite3
+
+# editors and OS files
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# TypeScript
+*.tsbuildinfo
+
+# local agent/tool state
+.claude/
+.z-ai-config
+.worktrees/
