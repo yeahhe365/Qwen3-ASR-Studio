@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { CloseIcon } from './icons/CloseIcon';
-import { QWEN_ASR_API_URL, QWEN_ASR_MODEL } from '../constants';
-import { Language, CompressionLevel } from '../types';
+import {
+  DOUBAO_ASR_API_URL,
+  DOUBAO_ASR_DOCS_URL,
+  DOUBAO_ASR_MODEL,
+  DOUBAO_ASR_RESOURCE_ID,
+  QWEN_ASR_API_URL,
+  QWEN_ASR_DOCS_URL,
+  QWEN_ASR_MODEL,
+} from '../constants';
+import { AsrProvider, Language, CompressionLevel } from '../types';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -21,8 +29,14 @@ interface SettingsPanelProps {
   audioDevices: MediaDeviceInfo[];
   selectedDeviceId: string;
   setSelectedDeviceId: (deviceId: string) => void;
+  asrProvider: AsrProvider;
+  setAsrProvider: (provider: AsrProvider) => void;
   qwenApiKey: string;
   setQwenApiKey: (key: string) => void;
+  doubaoApiKey: string;
+  setDoubaoApiKey: (key: string) => void;
+  doubaoAccessKey: string;
+  setDoubaoAccessKey: (key: string) => void;
   onClearHistory: () => void;
   onRestoreDefaults: () => void;
   disabled?: boolean;
@@ -91,8 +105,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   audioDevices,
   selectedDeviceId,
   setSelectedDeviceId,
+  asrProvider,
+  setAsrProvider,
   qwenApiKey,
   setQwenApiKey,
+  doubaoApiKey,
+  setDoubaoApiKey,
+  doubaoAccessKey,
+  setDoubaoAccessKey,
   onClearHistory,
   onRestoreDefaults,
   disabled,
@@ -180,17 +200,50 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       case 'transcription':
         return (
           <div className="space-y-6">
-            <div className="rounded-md border border-base-300 bg-base-100 px-3 py-3">
-              <p className="text-base font-semibold text-content-100">Qwen 官方 API</p>
-              <p className="mt-1 break-all text-sm text-content-200">{QWEN_ASR_MODEL} · {QWEN_ASR_API_URL}</p>
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <label className="text-base font-medium">API 提供商</label>
+              <div className="flex items-center gap-1 rounded-lg border border-base-300 bg-base-100 p-1">
+                <button onClick={() => setAsrProvider(AsrProvider.QWEN)} className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${asrProvider === AsrProvider.QWEN ? 'bg-brand-primary text-white' : 'hover:bg-base-300'}`}>Qwen</button>
+                <button onClick={() => setAsrProvider(AsrProvider.DOUBAO)} className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${asrProvider === AsrProvider.DOUBAO ? 'bg-brand-primary text-white' : 'hover:bg-base-300'}`}>豆包</button>
+              </div>
             </div>
-            <div>
-              <label htmlFor="qwen-api-key-setting" className="text-base font-medium">
-                API Key
-                <p className="text-sm text-content-200 font-normal">用于调用 Qwen 官方 OpenAI 兼容接口。</p>
-              </label>
-              <input id="qwen-api-key-setting" type="password" value={qwenApiKey} onChange={(e) => setQwenApiKey(e.target.value)} disabled={disabled} placeholder="sk-xxxxxxxxxxxxxxxx" className="mt-2 w-full px-3 py-2 text-sm rounded-md shadow-sm bg-base-100 border border-base-300 text-content-100 placeholder-content-200 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-60" />
-            </div>
+            {asrProvider === AsrProvider.QWEN ? (
+              <>
+                <div className="rounded-md border border-base-300 bg-base-100 px-3 py-3">
+                  <p className="text-base font-semibold text-content-100">Qwen 官方 API</p>
+                  <p className="mt-1 break-all text-sm text-content-200">{QWEN_ASR_MODEL} · {QWEN_ASR_API_URL}</p>
+                </div>
+                <div>
+                  <label htmlFor="qwen-api-key-setting" className="text-base font-medium">
+                    API Key
+                    <p className="text-sm text-content-200 font-normal">用于调用 Qwen 官方 OpenAI 兼容接口。</p>
+                  </label>
+                  <input id="qwen-api-key-setting" type="password" value={qwenApiKey} onChange={(e) => setQwenApiKey(e.target.value)} disabled={disabled} placeholder="sk-xxxxxxxxxxxxxxxx" className="mt-2 w-full px-3 py-2 text-sm rounded-md shadow-sm bg-base-100 border border-base-300 text-content-100 placeholder-content-200 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-60" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-md border border-base-300 bg-base-100 px-3 py-3">
+                  <p className="text-base font-semibold text-content-100">豆包语音识别极速版</p>
+                  <p className="mt-1 break-all text-sm text-content-200">{DOUBAO_ASR_MODEL} · {DOUBAO_ASR_RESOURCE_ID} · {DOUBAO_ASR_API_URL}</p>
+                  <p className="mt-2 text-sm text-content-200">当前使用音频 Base64 直传、自动语种识别、ITN 和标点；上下文提示仅 Qwen 模式使用。</p>
+                </div>
+                <div>
+                  <label htmlFor="doubao-api-key-setting" className="text-base font-medium">
+                    API Key / App Key
+                    <p className="text-sm text-content-200 font-normal">新版控制台填写 API Key；旧版鉴权填写 App Key 并补充 Access Key。</p>
+                  </label>
+                  <input id="doubao-api-key-setting" type="password" value={doubaoApiKey} onChange={(e) => setDoubaoApiKey(e.target.value)} disabled={disabled} placeholder="your-api-key-or-app-key" className="mt-2 w-full px-3 py-2 text-sm rounded-md shadow-sm bg-base-100 border border-base-300 text-content-100 placeholder-content-200 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-60" />
+                </div>
+                <div>
+                  <label htmlFor="doubao-access-key-setting" className="text-base font-medium">
+                    Access Key（可选）
+                    <p className="text-sm text-content-200 font-normal">仅旧版鉴权需要；留空时使用新版 X-Api-Key 鉴权。</p>
+                  </label>
+                  <input id="doubao-access-key-setting" type="password" value={doubaoAccessKey} onChange={(e) => setDoubaoAccessKey(e.target.value)} disabled={disabled} placeholder="旧版 Access Key，可留空" className="mt-2 w-full px-3 py-2 text-sm rounded-md shadow-sm bg-base-100 border border-base-300 text-content-100 placeholder-content-200 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-60" />
+                </div>
+              </>
+            )}
             <hr className="border-base-300" />
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
               <label htmlFor="language-setting" className="text-base font-medium">语言</label>
@@ -240,7 +293,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </div>
             <div>
               <p className="text-sm text-content-200">Qwen ASR API 文档。</p>
-              <a href="https://help.aliyun.com/zh/model-studio/qwen-speech-recognition" target="_blank" rel="noopener noreferrer" className="mt-1 text-sm text-brand-primary hover:underline block truncate">https://help.aliyun.com/zh/model-studio/qwen-speech-recognition</a>
+              <a href={QWEN_ASR_DOCS_URL} target="_blank" rel="noopener noreferrer" className="mt-1 text-sm text-brand-primary hover:underline block truncate">{QWEN_ASR_DOCS_URL}</a>
+            </div>
+            <div>
+              <p className="text-sm text-content-200">豆包语音识别极速版文档。</p>
+              <a href={DOUBAO_ASR_DOCS_URL} target="_blank" rel="noopener noreferrer" className="mt-1 text-sm text-brand-primary hover:underline block truncate">{DOUBAO_ASR_DOCS_URL}</a>
             </div>
           </div>
         );

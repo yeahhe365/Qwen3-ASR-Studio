@@ -25,4 +25,4 @@ The development server normally starts at `http://localhost:5173`.
 
 ## API Configuration
 
-The app calls the official Qwen ASR OpenAI-compatible endpoint directly. Configure your Qwen API key from the in-app settings panel.
+The app calls the selected ASR provider directly. Configure Qwen or Doubao credentials from the in-app settings panel.

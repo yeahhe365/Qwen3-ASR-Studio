@@ -9,8 +9,9 @@ import {
   setCachedTranscription,
 } from '../services/cacheService';
 import { compressAudio } from '../services/audioService';
-import { transcribeAudio } from '../services/qwenAsrService';
+import { transcribeAudio } from '../services/asrService';
 import type {
+  AsrProviderConfig,
   CompressionLevel,
   HistoryItem,
   Language,
@@ -39,7 +40,7 @@ type UseTranscriptionFlowOptions = {
   enableItn: boolean;
   autoCopy: boolean;
   compressionLevel: CompressionLevel;
-  qwenApiKey: string;
+  asrConfig: AsrProviderConfig;
   notify: Notify;
   clearNotification: () => void;
   saveNote: SaveNote;
@@ -56,7 +57,7 @@ export function useTranscriptionFlow({
   enableItn,
   autoCopy,
   compressionLevel,
-  qwenApiKey,
+  asrConfig,
   notify,
   clearNotification,
   saveNote,
@@ -156,7 +157,14 @@ export function useTranscriptionFlow({
 
     try {
       const hash = await getFileHash(file);
-      const cachedResult = bypassCache ? null : await getCachedTranscription(hash);
+      const cacheKey = [
+        hash,
+        asrConfig.provider,
+        language,
+        enableItn,
+        context.trim(),
+      ].join(':');
+      const cachedResult = bypassCache ? null : await getCachedTranscription(cacheKey);
 
       let finalResult: TranscriptionResult;
 
@@ -185,13 +193,13 @@ export function useTranscriptionFlow({
           context,
           language,
           enableItn,
-          { apiKey: qwenApiKey },
+          asrConfig,
           setLoadingMessage,
           controller.signal
         );
 
         if (finalResult.transcription) {
-          await setCachedTranscription(hash, finalResult);
+          await setCachedTranscription(cacheKey, finalResult);
         }
 
         if (autoCopy && finalResult.transcription) {
@@ -227,6 +235,7 @@ export function useTranscriptionFlow({
       }
     }
   }, [
+    asrConfig,
     autoCopy,
     compressionLevel,
     context,
@@ -237,7 +246,6 @@ export function useTranscriptionFlow({
     language,
     notify,
     prependHistoryItem,
-    qwenApiKey,
     transcriptionMode,
   ]);
 

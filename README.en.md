@@ -4,17 +4,17 @@
   <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
-A modern Web UI for Qwen ASR with recording, PWA support, local caching, and fast speech transcription workflows.
+A modern Web UI for Qwen and Doubao ASR with recording, PWA support, local caching, and fast speech transcription workflows.
 
 ## Overview
 
-A modern Web UI for Qwen ASR with recording, PWA support, local caching, and fast speech transcription workflows.
+A modern Web UI for Qwen and Doubao ASR with recording, PWA support, local caching, and fast speech transcription workflows.
 
 ## Features
 
 - Record audio and transcribe it in the browser.
 - PWA support for desktop and mobile workflows.
-- Uses the official Qwen ASR OpenAI-compatible API.
+- Uses provider adapters for the official Qwen ASR API and Doubao flash ASR API.
 - Frontend built with Vite, React, and TypeScript.
 
 ## Quick Start
@@ -30,7 +30,7 @@ The frontend development server normally starts at `http://localhost:5173`.
 
 ## Configuration
 
-- Configure your Qwen API key in the in-app settings panel.
+- Choose Qwen or Doubao in the in-app settings panel and configure the matching API credentials.
 
 ## Tech Stack
 
@@ -38,6 +38,7 @@ The frontend development server normally starts at `http://localhost:5173`.
 - TypeScript
 - Vite
 - Qwen ASR
+- Doubao ASR
 
 ## Project Structure
 

@@ -1,6 +1,18 @@
 export type Theme = 'light' | 'dark';
 export type TranscriptionMode = 'single' | 'notes';
 
+export enum AsrProvider {
+  QWEN = 'qwen',
+  DOUBAO = 'doubao',
+}
+
+export interface AsrProviderConfig {
+  provider: AsrProvider;
+  qwenApiKey: string;
+  doubaoApiKey: string;
+  doubaoAccessKey: string;
+}
+
 export type Notification = {
   message: string;
   type: 'error' | 'success';

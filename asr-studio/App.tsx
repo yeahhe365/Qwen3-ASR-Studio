@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
 import { AudioUploader, type AudioUploaderHandle } from './components/AudioUploader';
 import { ResultDisplay, type ResultDisplayHandle } from './components/ResultDisplay';
-import { CompressionLevel, Language } from './types';
+import { AsrProvider, CompressionLevel, Language } from './types';
+import type { AsrProviderConfig } from './types';
 import type { HistoryItem, NoteItem, Notification, Theme } from './types';
 import { Toast } from './components/Toast';
 import { LoaderIcon } from './components/icons/LoaderIcon';
@@ -36,6 +37,12 @@ const parseCompressionLevel = (storedValue: string | null) => {
     : CompressionLevel.ORIGINAL;
 };
 
+const parseAsrProvider = (storedValue: string | null) => {
+  return Object.values(AsrProvider).includes(storedValue as AsrProvider)
+    ? (storedValue as AsrProvider)
+    : AsrProvider.QWEN;
+};
+
 const parseTheme = (storedValue: string | null): Theme => {
   return storedValue === 'dark' ? 'dark' : 'light';
 };
@@ -58,7 +65,18 @@ export default function App() {
     parse: parseCompressionLevel,
   });
   const [selectedDeviceId, setSelectedDeviceId] = usePersistentState('selectedDeviceId', 'default');
+  const [asrProvider, setAsrProvider] = usePersistentState('asrProvider', AsrProvider.QWEN, {
+    parse: parseAsrProvider,
+  });
   const [qwenApiKey, setQwenApiKey] = usePersistentState('qwenApiKey', '');
+  const [doubaoApiKey, setDoubaoApiKey] = usePersistentState('doubaoApiKey', '');
+  const [doubaoAccessKey, setDoubaoAccessKey] = usePersistentState('doubaoAccessKey', '');
+  const asrConfig: AsrProviderConfig = useMemo(() => ({
+    provider: asrProvider,
+    qwenApiKey,
+    doubaoApiKey,
+    doubaoAccessKey,
+  }), [asrProvider, doubaoAccessKey, doubaoApiKey, qwenApiKey]);
 
   const audioUploaderRef = useRef<AudioUploaderHandle>(null);
   const resultDisplayRef = useRef<ResultDisplayHandle>(null);
@@ -111,7 +129,7 @@ export default function App() {
     enableItn,
     autoCopy,
     compressionLevel,
-    qwenApiKey,
+    asrConfig,
     notify,
     clearNotification,
     saveNote,
@@ -199,14 +217,20 @@ export default function App() {
     setTheme('light');
     setCompressionLevel(CompressionLevel.ORIGINAL);
     setSelectedDeviceId('default');
+    setAsrProvider(AsrProvider.QWEN);
     setQwenApiKey('');
+    setDoubaoApiKey('');
+    setDoubaoAccessKey('');
     setIsSettingsOpen(false);
     notify('已恢复默认设置', 'success');
   }, [
     notify,
+    setAsrProvider,
     setAutoCopy,
     setCompressionLevel,
     setContext,
+    setDoubaoAccessKey,
+    setDoubaoApiKey,
     setEnableItn,
     setLanguage,
     setQwenApiKey,
@@ -349,8 +373,14 @@ export default function App() {
         audioDevices={audioDevices}
         selectedDeviceId={selectedDeviceId}
         setSelectedDeviceId={setSelectedDeviceId}
+        asrProvider={asrProvider}
+        setAsrProvider={setAsrProvider}
         qwenApiKey={qwenApiKey}
         setQwenApiKey={setQwenApiKey}
+        doubaoApiKey={doubaoApiKey}
+        setDoubaoApiKey={setDoubaoApiKey}
+        doubaoAccessKey={doubaoAccessKey}
+        setDoubaoAccessKey={setDoubaoAccessKey}
         onClearHistory={handleClearHistory}
         onRestoreDefaults={handleRestoreDefaults}
         canInstall={canInstall}
@@ -365,7 +395,7 @@ export default function App() {
           language={language}
           enableItn={enableItn}
           selectedDeviceId={selectedDeviceId}
-          qwenApiKey={qwenApiKey}
+          asrConfig={asrConfig}
         />,
         pipContainer
       )}
