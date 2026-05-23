@@ -2,16 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
 import { AudioUploader, type AudioUploaderHandle } from './components/AudioUploader';
-import { ResultDisplay, type ResultDisplayHandle } from './components/ResultDisplay';
+import { ResultDisplay } from './components/ResultDisplay';
 import { AsrProvider, CompressionLevel, Language } from './types';
 import type { AsrProviderConfig } from './types';
-import type { HistoryItem, NoteItem, Notification, Theme } from './types';
+import type { HistoryItem, Notification, Theme } from './types';
 import { Toast } from './components/Toast';
 import { LoaderIcon } from './components/icons/LoaderIcon';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AudioPreview } from './components/AudioPreview';
 import { HistoryPanel } from './components/HistoryPanel';
-import { NotesPanel } from './components/NotesPanel';
 import { RetryIcon } from './components/icons/RetryIcon';
 import { PipView } from './components/PipView';
 import { StopIcon } from './components/icons/StopIcon';
@@ -20,7 +19,6 @@ import { CheckIcon } from './components/icons/CheckIcon';
 import { useAudioDevices } from './hooks/useAudioDevices';
 import { useDocumentPip } from './hooks/useDocumentPip';
 import { useHistoryItems } from './hooks/useHistoryItems';
-import { useNotes } from './hooks/useNotes';
 import { usePersistentState } from './hooks/usePersistentState';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { useTranscriptionFlow } from './hooks/useTranscriptionFlow';
@@ -81,7 +79,6 @@ export default function App() {
   }), [asrProvider, doubaoAccessKey, doubaoApiKey, geminiApiKey, qwenApiKey]);
 
   const audioUploaderRef = useRef<AudioUploaderHandle>(null);
-  const resultDisplayRef = useRef<ResultDisplayHandle>(null);
   const isSpaceDown = useRef(false);
   const audioDevices = useAudioDevices();
 
@@ -99,32 +96,26 @@ export default function App() {
 
   const { canInstall, installApp } = usePwaInstall(notify);
   const { history, prependHistoryItem, removeHistoryItem, removeAllHistory } = useHistoryItems(notify);
-  const { notes, saveNote, removeNote } = useNotes(notify);
   const { isPipActive, pipContainer, togglePip } = useDocumentPip(notify);
 
   const {
     audioFile,
     transcription,
-    setTranscription,
     detectedLanguage,
     isLoading,
     loadingMessage,
     isRecording,
-    transcriptionMode,
     copied,
     elapsedTime,
     realtimeElapsedTime,
     handleCancel,
     handleCopy,
     handleFileChange: changeAudioFile,
-    handleModeChange,
     handleRecordingChange,
     handleRetry,
-    handleSaveNote,
     handleTranscribe,
     handleTranscriptionResultFromPip,
     restoreHistoryItem,
-    restoreNoteItem,
   } = useTranscriptionFlow({
     context,
     language,
@@ -134,10 +125,8 @@ export default function App() {
     asrConfig,
     notify,
     clearNotification,
-    saveNote,
     prependHistoryItem,
     audioUploaderRef,
-    resultDisplayRef,
   });
 
   useEffect(() => {
@@ -206,11 +195,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [restoreHistoryItem, setContext]);
 
-  const handleRestoreNote = useCallback((item: NoteItem) => {
-    restoreNoteItem(item);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [restoreNoteItem]);
-
   const handleRestoreDefaults = useCallback(() => {
     setContext('');
     setLanguage(Language.AUTO);
@@ -267,15 +251,10 @@ export default function App() {
 
             <div className="flex min-w-0 flex-col lg:min-h-[424px]">
               <ResultDisplay
-                ref={resultDisplayRef}
                 transcription={transcription}
-                setTranscription={setTranscription}
                 detectedLanguage={detectedLanguage}
                 isLoading={isLoading}
                 loadingStatus={loadingMessage}
-                transcriptionMode={transcriptionMode}
-                onModeChange={handleModeChange}
-                onSaveNote={handleSaveNote}
                 elapsedTime={elapsedTime}
               />
               <div className="pt-4">
@@ -335,26 +314,14 @@ export default function App() {
             </div>
           </section>
 
-          <section className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="min-w-0">
-              <HistoryPanel
-                items={history}
-                onDelete={removeHistoryItem}
-                onRestore={handleRestoreHistory}
-                onError={handleError}
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="min-w-0">
-              <NotesPanel
-                items={notes}
-                onDelete={removeNote}
-                onRestore={handleRestoreNote}
-                onError={handleError}
-                disabled={isLoading}
-              />
-            </div>
+          <section className="min-w-0">
+            <HistoryPanel
+              items={history}
+              onDelete={removeHistoryItem}
+              onRestore={handleRestoreHistory}
+              onError={handleError}
+              disabled={isLoading}
+            />
           </section>
         </main>
       </div>

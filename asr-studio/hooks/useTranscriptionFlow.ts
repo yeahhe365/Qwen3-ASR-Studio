@@ -1,6 +1,5 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { AudioUploaderHandle } from '../components/AudioUploader';
-import type { ResultDisplayHandle } from '../components/ResultDisplay';
 import {
   clearCachedRecording,
   getCachedRecording,
@@ -15,14 +14,11 @@ import type {
   CompressionLevel,
   HistoryItem,
   Language,
-  NoteItem,
   Notification,
-  TranscriptionMode,
 } from '../types';
 import { useElapsedTimer } from './useElapsedTimer';
 
 type Notify = (message: string, type: Notification['type']) => void;
-type SaveNote = (content: string) => Promise<boolean>;
 type PrependHistoryItem = (item: HistoryItem) => Promise<void>;
 
 type TranscriptionResult = {
@@ -43,13 +39,9 @@ type UseTranscriptionFlowOptions = {
   asrConfig: AsrProviderConfig;
   notify: Notify;
   clearNotification: () => void;
-  saveNote: SaveNote;
   prependHistoryItem: PrependHistoryItem;
   audioUploaderRef: RefObject<AudioUploaderHandle>;
-  resultDisplayRef: RefObject<ResultDisplayHandle>;
 };
-
-const shouldAddInlineSeparator = (value: string) => value.length > 0 && !/[\s\n]$/.test(value);
 
 export function useTranscriptionFlow({
   context,
@@ -60,10 +52,8 @@ export function useTranscriptionFlow({
   asrConfig,
   notify,
   clearNotification,
-  saveNote,
   prependHistoryItem,
   audioUploaderRef,
-  resultDisplayRef,
 }: UseTranscriptionFlowOptions) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [transcription, setTranscription] = useState('');
@@ -73,7 +63,6 @@ export function useTranscriptionFlow({
   const [isRecording, setIsRecording] = useState(false);
   const [transcribeAfterRecording, setTranscribeAfterRecording] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionMode>('single');
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const realtimeElapsedTime = useElapsedTimer(isLoading);
@@ -87,18 +76,6 @@ export function useTranscriptionFlow({
     timestamp: Date.now(),
     audioFile: file,
   }), [context]);
-
-  const insertTranscription = useCallback((value: string, detectedValue: string) => {
-    if (transcriptionMode === 'single') {
-      setTranscription(value);
-      setDetectedLanguage(detectedValue);
-      return;
-    }
-
-    const prefix = shouldAddInlineSeparator(transcription) ? ' ' : '';
-    resultDisplayRef.current?.insertText(prefix + value);
-    setDetectedLanguage('');
-  }, [resultDisplayRef, transcription, transcriptionMode]);
 
   useEffect(() => {
     const loadCachedRecording = async () => {
@@ -129,16 +106,14 @@ export function useTranscriptionFlow({
     setAudioFile(file);
     setElapsedTime(null);
 
-    if (transcriptionMode === 'single') {
-      setTranscription('');
-      setDetectedLanguage('');
-    }
+    setTranscription('');
+    setDetectedLanguage('');
 
     if (file === null) {
       clearCachedRecording().catch(console.error);
       audioUploaderRef.current?.clearInput();
     }
-  }, [audioUploaderRef, clearNotification, transcriptionMode]);
+  }, [audioUploaderRef, clearNotification]);
 
   const transcribeNow = useCallback(async (file: File, bypassCache = false) => {
     abortControllerRef.current?.abort();
@@ -150,10 +125,8 @@ export function useTranscriptionFlow({
     setElapsedTime(null);
     const localStartTime = Date.now();
 
-    if (transcriptionMode === 'single') {
-      setTranscription('');
-      setDetectedLanguage('');
-    }
+    setTranscription('');
+    setDetectedLanguage('');
 
     try {
       const hash = await getFileHash(file);
@@ -213,7 +186,8 @@ export function useTranscriptionFlow({
         }
       }
 
-      insertTranscription(finalResult.transcription, finalResult.detectedLanguage);
+      setTranscription(finalResult.transcription);
+      setDetectedLanguage(finalResult.detectedLanguage);
 
       if (finalResult.transcription) {
         await prependHistoryItem(createHistoryItem(file, finalResult));
@@ -242,11 +216,9 @@ export function useTranscriptionFlow({
     createHistoryItem,
     clearNotification,
     enableItn,
-    insertTranscription,
     language,
     notify,
     prependHistoryItem,
-    transcriptionMode,
   ]);
 
   const handleTranscribe = useCallback(async () => {
@@ -291,7 +263,8 @@ export function useTranscriptionFlow({
 
   const handleTranscriptionResultFromPip = useCallback(async (result: PipTranscriptionResult) => {
     setAudioFile(result.audioFile);
-    insertTranscription(result.transcription, result.detectedLanguage);
+    setTranscription(result.transcription);
+    setDetectedLanguage(result.detectedLanguage);
 
     if (!result.transcription) {
       return;
@@ -299,22 +272,7 @@ export function useTranscriptionFlow({
 
     notify('输入法模式识别成功', 'success');
     await prependHistoryItem(createHistoryItem(result.audioFile, result));
-  }, [createHistoryItem, insertTranscription, notify, prependHistoryItem]);
-
-  const handleModeChange = useCallback((newMode: TranscriptionMode) => {
-    if (newMode !== transcriptionMode) {
-      setTranscription('');
-      setDetectedLanguage('');
-      setTranscriptionMode(newMode);
-    }
-  }, [transcriptionMode]);
-
-  const handleSaveNote = useCallback(async () => {
-    const saved = await saveNote(transcription);
-    if (saved) {
-      setTranscription('');
-    }
-  }, [saveNote, transcription]);
+  }, [createHistoryItem, notify, prependHistoryItem]);
 
   const restoreHistoryItem = useCallback((item: HistoryItem) => {
     if (!item.audioFile) {
@@ -325,18 +283,8 @@ export function useTranscriptionFlow({
     setAudioFile(item.audioFile);
     setTranscription(item.transcription);
     setDetectedLanguage(item.detectedLanguage);
-    setTranscriptionMode('single');
     notify('已从历史记录恢复', 'success');
     return true;
-  }, [notify]);
-
-  const restoreNoteItem = useCallback((item: NoteItem) => {
-    setTranscriptionMode('notes');
-    setTranscription(prev => {
-      const prefix = shouldAddInlineSeparator(prev) ? '\n\n' : '';
-      return prev + prefix + item.content;
-    });
-    notify('已从笔记恢复内容', 'success');
   }, [notify]);
 
   const handleRecordingChange = useCallback((recording: boolean) => {
@@ -358,20 +306,16 @@ export function useTranscriptionFlow({
     isLoading,
     loadingMessage,
     isRecording,
-    transcriptionMode,
     copied,
     elapsedTime,
     realtimeElapsedTime,
     handleCancel,
     handleCopy,
     handleFileChange,
-    handleModeChange,
     handleRecordingChange,
     handleRetry,
-    handleSaveNote,
     handleTranscribe,
     handleTranscriptionResultFromPip,
     restoreHistoryItem,
-    restoreNoteItem,
   };
 }

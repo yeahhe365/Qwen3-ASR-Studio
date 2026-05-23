@@ -1,5 +1,4 @@
 export type Theme = 'light' | 'dark';
-export type TranscriptionMode = 'single' | 'notes';
 
 export enum AsrProvider {
   QWEN = 'qwen',
@@ -49,12 +48,6 @@ export interface HistoryItem {
   context: string;
   timestamp: number;
   audioFile: File;
-}
-
-export interface NoteItem {
-  id: number;
-  content: string;
-  timestamp: number;
 }
 
 export interface BeforeInstallPromptEvent extends Event {
