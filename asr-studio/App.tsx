@@ -227,11 +227,11 @@ export default function App() {
   ]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-base-100 px-3 py-4 font-sans text-content-100 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl">
+    <div className="min-h-screen overflow-x-hidden bg-base-100 font-sans text-content-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-3 py-3 sm:px-5 sm:py-4 lg:px-6">
         <Header onSettingsClick={() => setIsSettingsOpen(true)} onPipClick={togglePip} />
-        <main className="mt-4 space-y-4 sm:mt-5">
-          <section className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-stretch">
+        <main className="mt-3 flex min-h-0 flex-1 flex-col gap-4 sm:mt-4">
+          <section className="grid min-w-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)] lg:items-stretch">
             <div className="min-w-0 space-y-4">
               <AudioUploader
                 ref={audioUploaderRef}
@@ -249,7 +249,7 @@ export default function App() {
               />
             </div>
 
-            <div className="flex min-w-0 flex-col lg:min-h-[424px]">
+            <div className="flex min-w-0 flex-col lg:min-h-[31rem]">
               <ResultDisplay
                 transcription={transcription}
                 detectedLanguage={detectedLanguage}
@@ -257,12 +257,12 @@ export default function App() {
                 loadingStatus={loadingMessage}
                 elapsedTime={elapsedTime}
               />
-              <div className="pt-4">
+              <div className="pt-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
                   <button
                     onClick={handleTranscribe}
                     disabled={(!audioFile && !isRecording) || isLoading}
-                    className="flex min-w-0 flex-1 items-center justify-center rounded-lg bg-brand-primary px-4 py-3 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:bg-brand-secondary focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50 disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200 disabled:shadow-none sm:px-6 sm:text-lg"
+                    className="flex min-w-0 flex-1 items-center justify-center rounded-xl bg-brand-primary px-4 py-3 text-base font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-secondary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200 disabled:shadow-none sm:px-6"
                   >
                     {isLoading ? (
                       <>
@@ -283,7 +283,7 @@ export default function App() {
                       onClick={handleCancel}
                       title="取消"
                       aria-label="取消识别"
-                      className="flex h-12 items-center justify-center rounded-lg bg-red-600 px-4 text-white shadow-lg transition-colors duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 sm:h-auto sm:flex-shrink-0 sm:px-3"
+                      className="flex h-12 items-center justify-center rounded-xl bg-red-600 px-4 text-white shadow-sm transition-colors duration-200 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:ring-offset-2 focus:ring-offset-base-100 sm:h-auto sm:flex-shrink-0 sm:px-3"
                     >
                       <StopIcon className="h-6 w-6" />
                     </button>
@@ -294,7 +294,7 @@ export default function App() {
                           onClick={handleCopy}
                           title={copied ? '已复制!' : '复制'}
                           aria-label="复制识别结果"
-                          className="flex-shrink-0 rounded-lg border border-base-300 bg-base-200 p-3 text-content-100 shadow-lg transition-colors duration-300 hover:bg-base-300 focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50"
+                          className="flex-shrink-0 rounded-xl border border-base-300 bg-base-200 p-3 text-content-100 shadow-sm transition-colors duration-200 hover:bg-base-300/60 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:ring-offset-2 focus:ring-offset-base-100"
                         >
                           {copied ? <CheckIcon className="h-6 w-6 text-brand-primary" /> : <CopyIcon className="h-6 w-6" />}
                         </button>
@@ -302,7 +302,7 @@ export default function App() {
                           onClick={handleRetry}
                           title="重试"
                           aria-label="重试识别"
-                          className="flex-shrink-0 rounded-lg border border-base-300 bg-base-200 p-3 text-content-100 shadow-lg transition-colors duration-300 hover:bg-base-300 focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50"
+                          className="flex-shrink-0 rounded-xl border border-base-300 bg-base-200 p-3 text-content-100 shadow-sm transition-colors duration-200 hover:bg-base-300/60 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:ring-offset-2 focus:ring-offset-base-100"
                         >
                           <RetryIcon className="h-6 w-6" />
                         </button>

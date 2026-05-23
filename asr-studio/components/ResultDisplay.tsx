@@ -42,20 +42,23 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ transcription, det
   const hasResult = transcription || detectedLanguage;
 
   return (
-    <div className="flex min-w-0 flex-grow flex-col rounded-lg border border-base-300 bg-base-200 shadow-sm md:min-h-0">
+    <div className="flex min-w-0 flex-grow flex-col rounded-xl border border-base-300 bg-base-200 shadow-sm md:min-h-0">
       <div className="flex flex-col gap-2 border-b border-base-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <h2 className="text-base font-semibold text-content-100">识别结果</h2>
+        <div>
+          <h2 className="text-sm font-semibold text-content-100">识别结果</h2>
+          <p className="mt-0.5 text-xs text-content-200">转录文本、语言和耗时会显示在这里。</p>
+        </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {!isLoading && (
             <>
               {detectedLanguage && (
-                <div className="flex items-center gap-1.5 rounded-full border border-base-300 bg-base-100 px-2.5 py-1 text-xs font-medium text-content-200">
+                <div className="flex items-center gap-1.5 rounded-full border border-base-300 bg-base-100 px-2.5 py-1 text-xs font-medium text-content-200 shadow-sm">
                   <LanguageIcon className="h-4 w-4 text-brand-primary" />
                   <span>{detectedLanguage}</span>
                 </div>
               )}
               {elapsedTime != null && (
-                <div title="识别耗时" className="flex items-center gap-1.5 rounded-full border border-base-300 bg-base-100 px-2.5 py-1 text-xs font-medium text-content-200">
+                <div title="识别耗时" className="flex items-center gap-1.5 rounded-full border border-base-300 bg-base-100 px-2.5 py-1 text-xs font-medium text-content-200 shadow-sm">
                   <span>耗时: {elapsedTime.toFixed(2)}s</span>
                 </div>
               )}
@@ -63,7 +66,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ transcription, det
           )}
         </div>
       </div>
-      <div className="relative min-h-[220px] flex-grow overflow-y-auto rounded-b-lg bg-base-100 p-4 sm:min-h-[260px] sm:p-5">
+      <div className="relative min-h-[240px] flex-grow overflow-y-auto rounded-b-xl bg-base-100 p-4 sm:min-h-[300px] sm:p-5">
         {isLoading && (
           <div className="absolute inset-0 z-10 flex h-full flex-col items-center justify-center bg-base-100/80 text-center backdrop-blur-sm">
             <LoaderIcon color="var(--color-brand-primary)" className="h-10" />
@@ -72,7 +75,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ transcription, det
 
         {!isLoading && (
           hasResult ? (
-            <div className="whitespace-pre-wrap text-base leading-relaxed text-content-100">
+            <div className="whitespace-pre-wrap text-[15px] leading-7 text-content-100">
               {transcription}
             </div>
           ) : (

@@ -42,26 +42,33 @@ export const AudioUploader = forwardRef<AudioUploaderHandle, AudioUploaderProps>
   };
   
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
-      {/* Tab switcher */}
-      <div role="tablist" aria-label="Audio input method" className="-mx-4 -mt-4 mb-4 overflow-hidden border-b border-base-300">
-        <div className="flex">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-base-300 bg-base-200 p-4 shadow-sm">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-content-100">音频输入</h2>
+          <p className="mt-0.5 text-xs text-content-200">录音或上传文件后开始识别。</p>
+        </div>
+        <div
+          role="tablist"
+          aria-label="Audio input method"
+          className="grid grid-cols-2 gap-1 rounded-lg border border-base-300 bg-base-100 p-1 shadow-sm sm:w-48"
+        >
           <button
             onClick={() => setActiveTab('record')}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-2 p-3 text-center font-medium transition-colors ${activeTab === 'record' ? 'font-semibold text-brand-primary' : 'text-content-200 hover:bg-base-300/50'}`}
+            className={`flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-center text-sm font-medium transition-colors ${activeTab === 'record' ? 'bg-base-200 text-content-100 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'text-content-200 hover:bg-base-300/60 hover:text-content-100'}`}
             aria-selected={activeTab === 'record'}
             role="tab"
           >
-            <MicrophoneIcon className="h-5 w-5 flex-shrink-0" />
+            <MicrophoneIcon className="h-4 w-4 flex-shrink-0" />
             <span className="truncate">录音</span>
           </button>
           <button
             onClick={() => setActiveTab('upload')}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-2 p-3 text-center font-medium transition-colors ${activeTab === 'upload' ? 'font-semibold text-brand-primary' : 'text-content-200 hover:bg-base-300/50'}`}
+            className={`flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-center text-sm font-medium transition-colors ${activeTab === 'upload' ? 'bg-base-200 text-content-100 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'text-content-200 hover:bg-base-300/60 hover:text-content-100'}`}
             aria-selected={activeTab === 'upload'}
             role="tab"
           >
-            <UploadIcon className="h-5 w-5 flex-shrink-0" />
+            <UploadIcon className="h-4 w-4 flex-shrink-0" />
             <span className="truncate">上传</span>
           </button>
         </div>

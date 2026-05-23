@@ -217,18 +217,18 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
     setSelectedRegion(null);
   }, [file, selectedRegion, onFileChange]);
 
-  const controlButtonClasses = "p-1.5 rounded-full text-content-200 hover:bg-base-300/50 hover:text-content-100 disabled:opacity-50";
+  const controlButtonClasses = "p-1.5 rounded-lg text-content-200 hover:bg-base-300/50 hover:text-content-100 disabled:opacity-50";
 
   return (
-    <div className="flex min-w-0 flex-col justify-center rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm sm:min-h-[144px]">
+    <div className="flex min-w-0 flex-col justify-center rounded-xl border border-base-300 bg-base-200 p-4 shadow-sm sm:min-h-[144px]">
       {file ? (
         <div className={`flex h-full min-w-0 flex-col justify-between gap-3 transition-opacity duration-300 ${isPlayerReady ? 'opacity-100' : 'opacity-0'}`}>
             <div className="min-w-0">
-                <div className="flex justify-between items-baseline text-xs">
-                     <p className="font-medium text-content-100 truncate" title={file.name}>
+                <div className="flex items-baseline justify-between text-xs">
+                     <p className="truncate font-medium text-content-100" title={file.name}>
                         {file.name}
                     </p>
-                    <span className="font-mono text-content-200 ml-2 flex-shrink-0">{formatTime(currentTime)} / {formatTime(duration)}</span>
+                    <span className="ml-2 flex-shrink-0 rounded-full border border-base-300 bg-base-100 px-2 py-0.5 font-mono text-content-200">{formatTime(currentTime)} / {formatTime(duration)}</span>
                 </div>
                 <div ref={waveformRef} className={`w-full h-10 mt-3 ${isClipping ? 'cursor-crosshair' : 'cursor-pointer'}`} />
             </div>
@@ -238,11 +238,11 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
                     <button onClick={handleToggleMute} title={isMuted ? "取消静音" : "静音"} className={controlButtonClasses} disabled={disabled}>
                         {isMuted ? <VolumeOffIcon className="w-4 h-4" /> : <VolumeUpIcon className="w-4 h-4" />}
                     </button>
-                    <button onClick={handleCyclePlaybackRate} title={`播放速度: ${playbackRate}x`} className="px-2 py-0.5 w-10 text-xs font-semibold rounded-full text-content-200 hover:bg-base-300/50 hover:text-content-100 disabled:opacity-50" disabled={disabled}>
+                    <button onClick={handleCyclePlaybackRate} title={`播放速度: ${playbackRate}x`} className="w-10 rounded-lg px-2 py-1 text-xs font-semibold text-content-200 hover:bg-base-300/50 hover:text-content-100 disabled:opacity-50" disabled={disabled}>
                         {playbackRate}x
                     </button>
                     {isClipping && (
-                      <button onClick={handleSaveClip} disabled={!selectedRegion || disabled} title="保存剪辑" className="px-2 py-0.5 text-xs font-semibold rounded-full text-white bg-brand-primary hover:bg-brand-secondary disabled:bg-base-300 disabled:text-content-200 disabled:cursor-not-allowed">
+                      <button onClick={handleSaveClip} disabled={!selectedRegion || disabled} title="保存剪辑" className="rounded-lg bg-brand-primary px-2 py-1 text-xs font-semibold text-white hover:bg-brand-secondary disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200">
                         保存
                       </button>
                     )}
@@ -251,7 +251,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
                     <button onClick={handleSeek(-5)} title="快退5秒" className={controlButtonClasses} disabled={disabled || isClipping}>
                         <BackwardIcon className="w-5 h-5" />
                     </button>
-                    <button onClick={handlePlayPause} title={isPlaying ? "暂停" : "播放"} className="p-2 w-10 h-10 flex-shrink-0 rounded-full text-content-100 bg-base-300/50 hover:bg-base-300 disabled:opacity-50 flex items-center justify-center" disabled={disabled || !isPlayerReady}>
+                    <button onClick={handlePlayPause} title={isPlaying ? "暂停" : "播放"} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-base-300/50 p-2 text-content-100 hover:bg-base-300 disabled:opacity-50" disabled={disabled || !isPlayerReady}>
                         {isPlaying ? <PauseIcon className="w-6 h-6" /> : <PlayIcon className="w-6 h-6" />}
                     </button>
                     <button onClick={handleSeek(5)} title="快进5秒" className={controlButtonClasses} disabled={disabled || isClipping}>

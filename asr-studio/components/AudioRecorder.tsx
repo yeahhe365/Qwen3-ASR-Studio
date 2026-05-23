@@ -257,9 +257,9 @@ export const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>
 
   return (
     <div className="grid w-full min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-      <div className="flex min-w-0 flex-col items-center">
-        <div className="mb-2 flex min-w-0 items-baseline gap-3">
-            <p className="font-mono text-xl text-content-100 sm:text-2xl">
+      <div className="flex min-w-0 flex-col items-stretch">
+        <div className="mb-2 flex min-w-0 justify-center">
+            <p className="rounded-lg border border-base-300 bg-base-100 px-3 py-1 font-mono text-lg text-content-100 shadow-sm sm:text-xl">
               {formatTime(recordingTime)}
             </p>
         </div>
@@ -267,7 +267,7 @@ export const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>
           onClick={recordingStatus === 'idle' ? handleStartRecording : handleStopRecording}
           disabled={disabled}
           title={recordingStatus === 'idle' ? '按住空格键快捷录音' : '松开空格键快捷停止'}
-          className={`flex h-12 w-full min-w-0 flex-shrink-0 items-center justify-center rounded-lg px-4 py-2 font-semibold text-white shadow-md transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-200 disabled:shadow-none sm:h-14 sm:w-36 ${
+          className={`flex h-12 w-full min-w-0 flex-shrink-0 items-center justify-center rounded-xl px-4 py-2 font-semibold text-white shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-200 disabled:shadow-none sm:h-14 sm:w-36 ${
             recordingStatus === 'idle' 
               ? 'bg-brand-primary hover:bg-brand-secondary focus:ring-brand-primary' 
               : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
@@ -287,7 +287,7 @@ export const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>
         </button>
       </div>
       <div className="flex min-w-0 flex-col justify-center text-left">
-        <div className="h-16 w-full overflow-hidden rounded-md bg-base-100 sm:h-24">
+        <div className="h-16 w-full overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-inner sm:h-24">
             <canvas ref={canvasRef} className="h-full w-full" />
         </div>
       </div>

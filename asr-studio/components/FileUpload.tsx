@@ -61,10 +61,10 @@ export const FileUpload = forwardRef<FileUploadHandle, FileUploadProps>(({ onFil
     inputRef.current?.click();
   };
   
-  const dropzoneBaseClasses = "relative flex flex-col items-center justify-center w-full p-4 sm:p-6 transition-all duration-300 border-2 border-dashed rounded-lg cursor-pointer";
+  const dropzoneBaseClasses = "relative flex flex-col items-center justify-center w-full p-5 sm:p-7 transition-all duration-200 border border-dashed rounded-xl cursor-pointer";
   const dropzoneDisabledClasses = "bg-base-300 opacity-60 cursor-not-allowed";
-  const dropzoneIdleClasses = "border-base-300 hover:border-brand-primary hover:bg-base-200";
-  const dropzoneDraggingClasses = "border-brand-primary bg-base-200 ring-4 ring-brand-primary ring-opacity-30";
+  const dropzoneIdleClasses = "border-base-300 bg-base-100 hover:border-brand-primary hover:bg-base-200";
+  const dropzoneDraggingClasses = "border-brand-primary bg-base-200 ring-2 ring-brand-primary/30";
 
   return (
     <div
@@ -84,11 +84,11 @@ export const FileUpload = forwardRef<FileUploadHandle, FileUploadProps>(({ onFil
         disabled={disabled}
       />
       <div className="flex flex-col items-center justify-center text-center">
-        <UploadIcon className="w-10 h-10 mb-2 sm:w-12 sm:h-12 sm:mb-3 text-content-200" />
+        <UploadIcon className="mb-3 h-11 w-11 rounded-xl border border-base-300 bg-base-200 p-2 text-content-200 shadow-sm sm:h-12 sm:w-12" />
         <p className="font-semibold text-content-100 text-sm sm:text-base">
           点击上传或拖拽文件
         </p>
-        <p className="text-xs sm:text-sm text-content-200">支持 WAV, MP3, FLAC 等格式</p>
+        <p className="mt-1 text-xs text-content-200 sm:text-sm">支持 WAV, MP3, FLAC 等格式</p>
       </div>
     </div>
   );
