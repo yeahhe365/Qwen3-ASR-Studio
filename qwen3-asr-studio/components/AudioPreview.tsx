@@ -233,8 +233,8 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
                 <div ref={waveformRef} className={`w-full h-10 mt-3 ${isClipping ? 'cursor-crosshair' : 'cursor-pointer'}`} />
             </div>
 
-            <div className="-mx-1 -mb-1 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1">
+            <div className="grid gap-2 pt-1 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+                <div className="flex min-w-0 flex-wrap items-center gap-1">
                     <button onClick={handleToggleMute} title={isMuted ? "取消静音" : "静音"} className={controlButtonClasses} disabled={disabled}>
                         {isMuted ? <VolumeOffIcon className="w-4 h-4" /> : <VolumeUpIcon className="w-4 h-4" />}
                     </button>
@@ -247,7 +247,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
                       </button>
                     )}
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex min-w-0 items-center justify-center gap-1">
                     <button onClick={handleSeek(-5)} title="快退5秒" className={controlButtonClasses} disabled={disabled || isClipping}>
                         <BackwardIcon className="w-5 h-5" />
                     </button>
@@ -258,7 +258,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
                         <FastForwardIcon className="w-5 h-5" />
                     </button>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-1 sm:justify-end">
                     <button onClick={handleToggleLoop} title="循环播放" className={`${controlButtonClasses} ${isLooping ? 'text-brand-primary' : ''}`} disabled={disabled}>
                         <RetryIcon className="w-4 h-4" />
                     </button>

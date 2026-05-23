@@ -270,7 +270,7 @@ export default function App() {
                 elapsedTime={elapsedTime}
               />
               <div className="pt-4">
-                <div className="flex items-stretch gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
                   <button
                     onClick={handleTranscribe}
                     disabled={(!audioFile && !isRecording) || isLoading}
@@ -295,13 +295,13 @@ export default function App() {
                       onClick={handleCancel}
                       title="取消"
                       aria-label="取消识别"
-                      className="flex-shrink-0 rounded-lg bg-red-600 p-3 text-white shadow-lg transition-colors duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50"
+                      className="flex h-12 items-center justify-center rounded-lg bg-red-600 px-4 text-white shadow-lg transition-colors duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 sm:h-auto sm:flex-shrink-0 sm:px-3"
                     >
                       <StopIcon className="h-6 w-6" />
                     </button>
                   ) : (
                     transcription && audioFile && (
-                      <>
+                      <div className="flex items-stretch gap-3 sm:flex-shrink-0">
                         <button
                           onClick={handleCopy}
                           title={copied ? '已复制!' : '复制'}
@@ -318,7 +318,7 @@ export default function App() {
                         >
                           <RetryIcon className="h-6 w-6" />
                         </button>
-                      </>
+                      </div>
                     )
                   )}
                 </div>

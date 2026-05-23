@@ -21,7 +21,7 @@ export const ExampleButtons: React.FC<ExampleButtonsProps> = ({ onLoadExample, d
         <h3 className="text-sm font-semibold text-content-100">示例音频</h3>
         <span className="text-xs text-content-200">快速体验</span>
       </div>
-      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {examples.map(example => (
           <button
             key={example.id}
