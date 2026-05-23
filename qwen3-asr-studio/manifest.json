@@ -1,6 +1,6 @@
 {
-  "name": "Qwen3-ASR-Studio",
-  "short_name": "Qwen3-ASR",
+  "name": "ASR Studio",
+  "short_name": "ASR Studio",
   "description": "一个用于阿里云Qwen模型的网页界面。可以上传或录制音频，提供可选的上下文，并获得快速、准确的转录结果。",
   "start_url": ".",
   "display": "standalone",

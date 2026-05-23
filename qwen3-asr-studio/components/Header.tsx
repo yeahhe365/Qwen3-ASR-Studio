@@ -23,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onPipClick }) =
           <LogoIcon className="h-5 w-5 sm:h-6 sm:w-6" />
         </span>
         <span className="min-w-0 pr-1">
-          <span className="block truncate text-sm font-bold leading-tight sm:text-xl">Qwen3-ASR Studio</span>
+          <span className="block truncate text-sm font-bold leading-tight sm:text-xl">ASR Studio</span>
           <span className="hidden text-xs text-content-200 sm:block">语音识别工作台</span>
         </span>
       </a>

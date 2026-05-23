@@ -1,6 +1,6 @@
-# Qwen3-ASR Studio Frontend
+# ASR Studio Frontend
 
-This directory contains the Vite + React frontend for Qwen3-ASR Studio.
+This directory contains the Vite + React frontend for ASR Studio.
 
 ## Run Locally
 

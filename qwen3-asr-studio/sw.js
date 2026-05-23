@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qwen3-asr-studio-cache-v1';
+const CACHE_NAME = 'asr-studio-cache-v1';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',

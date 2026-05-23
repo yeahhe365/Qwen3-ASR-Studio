@@ -14,19 +14,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Qwen3-ASR ModelScope API",
+  title: "ASR Studio ModelScope API",
   description: "ModelScope / Gradio proxy and demo pages for Qwen3-ASR transcription workflows.",
   keywords: ["Qwen3-ASR", "ModelScope", "Gradio", "ASR", "speech transcription", "Next.js"],
-  authors: [{ name: "Qwen3-ASR Studio" }],
+  authors: [{ name: "ASR Studio" }],
   openGraph: {
-    title: "Qwen3-ASR ModelScope API",
+    title: "ASR Studio ModelScope API",
     description: "ModelScope / Gradio proxy for Qwen3-ASR transcription.",
-    siteName: "Qwen3-ASR Studio",
+    siteName: "ASR Studio",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Qwen3-ASR ModelScope API",
+    title: "ASR Studio ModelScope API",
     description: "ModelScope / Gradio proxy for Qwen3-ASR transcription.",
   },
 };

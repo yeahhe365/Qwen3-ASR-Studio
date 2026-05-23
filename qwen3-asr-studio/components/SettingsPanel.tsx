@@ -253,11 +253,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <div className="space-y-4 flex flex-col">
             <img 
               src="https://modelscope.oss-cn-beijing.aliyuncs.com/resource/00EE8C99-9C05-4236-A6D0-B58FF172D31B.png"
-              alt="Qwen3 ASR Studio Logo"
+              alt="ASR Studio Logo"
               className="h-16 w-auto mx-auto mb-2" 
             />
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-content-100">关于 Qwen3-ASR Studio</h3>
+              <h3 className="text-lg font-semibold text-content-100">关于 ASR Studio</h3>
               <span className="text-xs font-mono text-content-200 bg-base-100 px-2 py-1 rounded-md">v1.1.0</span>
             </div>
             <div>

@@ -41,7 +41,7 @@ export function useDocumentPip(notify: Notify) {
         pipWin.document.head.appendChild(newScript);
       });
 
-      pipWin.document.title = '输入法模式 - Qwen3-ASR';
+      pipWin.document.title = '输入法模式 - ASR Studio';
       pipWin.document.documentElement.className = document.documentElement.className;
       pipWin.document.body.style.margin = '0';
       pipWin.document.body.style.overflow = 'hidden';
