@@ -73,8 +73,8 @@
 
 1.  **克隆仓库**
     ```bash
-    git clone https://github.com/yeahhe365/Qwen3-ASR-Studio.git
-    cd Qwen3-ASR-Studio
+    git clone https://github.com/yeahhe365/ASR-Studio.git
+    cd ASR-Studio
     ```
 
 2.  **进入前端项目并安装依赖**

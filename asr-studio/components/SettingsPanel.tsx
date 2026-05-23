@@ -262,7 +262,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </div>
             <div>
               <p className="text-sm text-content-200">您可以在 GitHub 上找到此项目的源代码。</p>
-              <a href="https://github.com/yeahhe365/Qwen3-ASR-Studio" target="_blank" rel="noopener noreferrer" className="mt-1 block text-sm text-brand-primary hover:underline">GitHub 仓库</a>
+              <a href="https://github.com/yeahhe365/ASR-Studio" target="_blank" rel="noopener noreferrer" className="mt-1 block text-sm text-brand-primary hover:underline">GitHub 仓库</a>
             </div>
             <div>
               <p className="text-sm text-content-200">您可以在此处找到 ModelScope API 文档。</p>

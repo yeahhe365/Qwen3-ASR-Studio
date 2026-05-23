@@ -20,8 +20,8 @@ A modern Web UI for Qwen ASR with recording, PWA support, local caching, and fas
 ## Quick Start
 
 ```bash
-git clone https://github.com/yeahhe365/Qwen3-ASR-Studio.git
-cd Qwen3-ASR-Studio/asr-studio
+git clone https://github.com/yeahhe365/ASR-Studio.git
+cd ASR-Studio/asr-studio
 npm install
 npm run dev
 ```
