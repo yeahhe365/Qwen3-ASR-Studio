@@ -234,12 +234,21 @@ export default function App() {
   ]);
 
   return (
-    <div className="min-h-screen bg-base-100 text-content-100 font-sans p-3 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen overflow-x-hidden bg-base-100 px-3 py-4 font-sans text-content-100 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-6xl">
         <Header onSettingsClick={() => setIsSettingsOpen(true)} onPipClick={togglePip} />
-        <main className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <div className="md:col-start-1 md:row-start-1">
+        <main className="mt-4 space-y-4 sm:mt-5">
+          <section className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-stretch">
+            <div className="min-w-0 space-y-4">
+              <AudioUploader
+                ref={audioUploaderRef}
+                onFileChange={changeAudioFile}
+                onRecordingChange={handleRecordingChange}
+                disabled={isLoading}
+                onRecordingError={handleError}
+                theme={theme}
+                selectedDeviceId={selectedDeviceId}
+              />
               <AudioPreview
                 file={audioFile}
                 onFileChange={changeAudioFile}
@@ -247,7 +256,7 @@ export default function App() {
               />
             </div>
 
-            <div className="flex flex-col md:col-start-2 md:row-start-1 md:row-span-2">
+            <div className="flex min-w-0 flex-col lg:min-h-[424px]">
               <ResultDisplay
                 ref={resultDisplayRef}
                 transcription={transcription}
@@ -260,18 +269,18 @@ export default function App() {
                 onSaveNote={handleSaveNote}
                 elapsedTime={elapsedTime}
               />
-              <div className="pt-6">
+              <div className="pt-4">
                 <div className="flex items-stretch gap-3">
                   <button
                     onClick={handleTranscribe}
                     disabled={(!audioFile && !isRecording) || isLoading}
-                    className="flex-grow flex items-center justify-center px-4 sm:px-6 py-3 text-base sm:text-lg font-semibold text-white transition-all duration-300 rounded-lg shadow-lg bg-brand-primary hover:bg-brand-secondary disabled:bg-base-300 disabled:cursor-not-allowed disabled:text-content-200 focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50"
+                    className="flex min-w-0 flex-1 items-center justify-center rounded-lg bg-brand-primary px-4 py-3 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:bg-brand-secondary focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50 disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200 disabled:shadow-none sm:px-6 sm:text-lg"
                   >
                     {isLoading ? (
                       <>
-                        <LoaderIcon color="white" className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
-                        <span>正在识别...</span>
-                        <span className="font-mono ml-2 tabular-nums w-[60px] text-left">
+                        <LoaderIcon color="white" className="mr-2 h-5 w-5 sm:mr-3 sm:h-6 sm:w-6" />
+                        <span className="truncate">正在识别...</span>
+                        <span className="ml-2 w-[60px] flex-shrink-0 text-left font-mono tabular-nums">
                           {realtimeElapsedTime.toFixed(1)}s
                         </span>
                       </>
@@ -286,9 +295,9 @@ export default function App() {
                       onClick={handleCancel}
                       title="取消"
                       aria-label="取消识别"
-                      className="flex-shrink-0 p-3 text-white transition-colors duration-300 bg-red-600 rounded-lg shadow-lg hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50"
+                      className="flex-shrink-0 rounded-lg bg-red-600 p-3 text-white shadow-lg transition-colors duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50"
                     >
-                      <StopIcon className="w-6 h-6" />
+                      <StopIcon className="h-6 w-6" />
                     </button>
                   ) : (
                     transcription && audioFile && (
@@ -297,17 +306,17 @@ export default function App() {
                           onClick={handleCopy}
                           title={copied ? '已复制!' : '复制'}
                           aria-label="复制识别结果"
-                          className="flex-shrink-0 p-3 text-content-100 transition-colors duration-300 rounded-lg shadow-lg bg-base-200 border border-base-300 hover:bg-base-300 focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50"
+                          className="flex-shrink-0 rounded-lg border border-base-300 bg-base-200 p-3 text-content-100 shadow-lg transition-colors duration-300 hover:bg-base-300 focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50"
                         >
-                          {copied ? <CheckIcon className="w-6 h-6 text-brand-primary" /> : <CopyIcon className="w-6 h-6" />}
+                          {copied ? <CheckIcon className="h-6 w-6 text-brand-primary" /> : <CopyIcon className="h-6 w-6" />}
                         </button>
                         <button
                           onClick={handleRetry}
                           title="重试"
                           aria-label="重试识别"
-                          className="flex-shrink-0 p-3 text-content-100 transition-colors duration-300 rounded-lg shadow-lg bg-base-200 border border-base-300 hover:bg-base-300 focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50"
+                          className="flex-shrink-0 rounded-lg border border-base-300 bg-base-200 p-3 text-content-100 shadow-lg transition-colors duration-300 hover:bg-base-300 focus:outline-none focus:ring-4 focus:ring-brand-primary focus:ring-opacity-50"
                         >
-                          <RetryIcon className="w-6 h-6" />
+                          <RetryIcon className="h-6 w-6" />
                         </button>
                       </>
                     )
@@ -315,20 +324,10 @@ export default function App() {
                 </div>
               </div>
             </div>
+          </section>
 
-            <div className="md:col-start-1 md:row-start-2">
-              <AudioUploader
-                ref={audioUploaderRef}
-                onFileChange={changeAudioFile}
-                onRecordingChange={handleRecordingChange}
-                disabled={isLoading}
-                onRecordingError={handleError}
-                theme={theme}
-                selectedDeviceId={selectedDeviceId}
-              />
-            </div>
-
-            <div className="md:col-start-2 md:row-start-3">
+          <section className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="min-w-0">
               <HistoryPanel
                 items={history}
                 onDelete={removeHistoryItem}
@@ -338,7 +337,7 @@ export default function App() {
               />
             </div>
 
-            <div className="md:col-start-1 md:row-start-3">
+            <div className="min-w-0">
               <NotesPanel
                 items={notes}
                 onDelete={removeNote}
@@ -347,11 +346,9 @@ export default function App() {
                 disabled={isLoading}
               />
             </div>
+          </section>
 
-            <div className="md:col-span-2">
-              <ExampleButtons onLoadExample={handleLoadExample} disabled={isLoading} />
-            </div>
-          </div>
+          <ExampleButtons onLoadExample={handleLoadExample} disabled={isLoading} />
         </main>
       </div>
       {notification && <Toast message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}

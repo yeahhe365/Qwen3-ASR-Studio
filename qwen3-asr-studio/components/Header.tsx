@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { KeyboardIcon } from './icons/KeyboardIcon';
+import { LogoIcon } from './icons/LogoIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
 
 interface HeaderProps {
@@ -11,34 +12,38 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onPipClick }) => {
 
   return (
-    <header className="flex items-center justify-between">
-      <div className="flex-1"></div>
-      <div className="flex items-center justify-center flex-shrink-0 mx-4">
-        <a href="https://qwen3-asr-studio.pages.dev/" target="_blank" rel="noopener noreferrer">
-          <img
-            src="https://modelscope.oss-cn-beijing.aliyuncs.com/resource/00EE8C99-9C05-4236-A6D0-B58FF172D31B.png"
-            alt="Qwen3 ASR Studio"
-            className="h-12 sm:h-16 w-auto cursor-pointer"
-          />
-        </a>
-      </div>
-      <div className="flex-1 flex justify-end items-center gap-2">
+    <header className="flex min-w-0 items-center justify-between gap-3">
+      <a
+        href="https://qwen3-asr-studio.pages.dev/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex min-w-0 items-center gap-3 text-content-100"
+      >
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-brand-primary text-white shadow-sm sm:h-10 sm:w-10">
+          <LogoIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+        </span>
+        <span className="min-w-0 pr-1">
+          <span className="block truncate text-sm font-bold leading-tight sm:text-xl">Qwen3-ASR Studio</span>
+          <span className="hidden text-xs text-content-200 sm:block">语音识别工作台</span>
+        </span>
+      </a>
+      <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
         <button
           onClick={onPipClick}
           title="输入法模式 (画中画)"
           aria-label="打开输入法模式"
-          className="flex items-center gap-2 p-2 sm:px-3 text-sm font-medium rounded-lg text-content-200 hover:bg-base-200 hover:text-content-100 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          className="flex h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium text-content-200 transition-colors hover:bg-base-200 hover:text-content-100 focus:outline-none focus:ring-2 focus:ring-brand-primary sm:h-10 sm:px-3"
         >
-          <KeyboardIcon className="w-5 h-5" />
-          <span className="hidden sm:inline">输入法模式</span>
+          <KeyboardIcon className="h-5 w-5" />
+          <span className="hidden md:inline">输入法</span>
         </button>
         <button
           onClick={onSettingsClick}
           title="设置"
           aria-label="打开设置"
-          className="p-2 rounded-full text-content-200 hover:bg-base-200 hover:text-content-100 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-content-200 transition-colors hover:bg-base-200 hover:text-content-100 focus:outline-none focus:ring-2 focus:ring-brand-primary sm:h-10 sm:w-10"
         >
-          <SettingsIcon className="w-6 h-6" />
+          <SettingsIcon className="h-5 w-5" />
         </button>
       </div>
     </header>

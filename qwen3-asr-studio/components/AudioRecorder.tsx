@@ -256,10 +256,10 @@ export const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>
   }));
 
   return (
-    <div className="flex flex-col min-[250px]:flex-row items-stretch w-full gap-4">
-      <div className="flex flex-col items-center flex-shrink-0">
-        <div className="flex items-baseline gap-3 mb-2">
-            <p className="text-xl sm:text-2xl font-mono text-content-100 tracking-wider">
+    <div className="grid w-full min-w-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+      <div className="flex min-w-0 flex-col items-center">
+        <div className="mb-2 flex min-w-0 items-baseline gap-3">
+            <p className="font-mono text-xl text-content-100 sm:text-2xl">
               {formatTime(recordingTime)}
             </p>
         </div>
@@ -267,7 +267,7 @@ export const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>
           onClick={recordingStatus === 'idle' ? handleStartRecording : handleStopRecording}
           disabled={disabled}
           title={recordingStatus === 'idle' ? '按住空格键快捷录音' : '松开空格键快捷停止'}
-          className={`flex-shrink-0 flex items-center justify-center w-full min-[250px]:w-36 h-12 sm:h-14 px-4 py-2 font-semibold text-white transition-colors duration-300 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-200 ${
+          className={`flex h-12 w-full min-w-0 flex-shrink-0 items-center justify-center rounded-lg px-4 py-2 font-semibold text-white shadow-md transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-200 disabled:shadow-none sm:h-14 sm:w-36 ${
             recordingStatus === 'idle' 
               ? 'bg-brand-primary hover:bg-brand-secondary focus:ring-brand-primary' 
               : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
@@ -275,25 +275,20 @@ export const AudioRecorder = forwardRef<AudioRecorderHandle, AudioRecorderProps>
         >
           {recordingStatus === 'idle' ? (
             <>
-              <MicrophoneIcon className="w-6 h-6 mr-2" />
-              <div className="flex flex-col items-center">
-                <span className="leading-tight">开始</span>
-                <span className="mt-1 text-xs font-normal opacity-80 border border-white/40 rounded px-1.5">
-                  SPACE
-                </span>
-              </div>
+              <MicrophoneIcon className="mr-2 h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+              <span className="truncate">开始</span>
             </>
           ) : (
             <>
-              <StopIcon className="w-6 h-6 mr-2" />
-              <span>停止录音</span>
+              <StopIcon className="mr-2 h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+              <span className="truncate">停止录音</span>
             </>
           )}
         </button>
       </div>
-      <div className="flex flex-col flex-grow text-left">
-        <div className="w-full h-20 sm:h-24 bg-base-100 rounded-md overflow-hidden">
-            <canvas ref={canvasRef} className="w-full h-full" />
+      <div className="flex min-w-0 flex-col justify-center text-left">
+        <div className="h-16 w-full overflow-hidden rounded-md bg-base-100 sm:h-24">
+            <canvas ref={canvasRef} className="h-full w-full" />
         </div>
       </div>
     </div>

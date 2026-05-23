@@ -5,6 +5,7 @@ import { DeleteIcon } from './icons/DeleteIcon';
 import { CopyIcon } from './icons/CopyIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { RestoreIcon } from './icons/RestoreIcon';
+import { EmptyState } from './EmptyState';
 
 interface NotesPanelProps {
   items: NoteItem[];
@@ -43,13 +44,18 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ items, onDelete, onResto
   };
 
   return (
-    <div className="p-4 rounded-lg bg-base-200 border border-base-300">
-      <h3 className="text-lg font-semibold text-content-100 mb-4">笔记</h3>
-      <div className="h-80 md:h-96">
+    <div className="min-w-0 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-content-100">笔记</h3>
+        <span className="rounded-full bg-base-100 px-2 py-0.5 text-xs text-content-200">{items.length}</span>
+      </div>
+      <div className="h-44 sm:h-64 lg:h-72">
         {items.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-center text-content-200">笔记列表为空。</p>
-          </div>
+          <EmptyState
+            icon={<CopyIcon className="h-5 w-5" />}
+            title="暂无笔记"
+            description="在笔记模式保存内容后，会在这里集中管理。"
+          />
         ) : (
           <div className="space-y-3 h-full overflow-y-auto pr-2">
             {items.map((item) => (

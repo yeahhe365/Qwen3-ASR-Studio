@@ -13,6 +13,7 @@ import { FastForwardIcon } from './icons/FastForwardIcon';
 import { RetryIcon } from './icons/RetryIcon';
 import { ScissorsIcon } from './icons/ScissorsIcon';
 import { bufferToWav } from '../services/audioService';
+import { EmptyState } from './EmptyState';
 
 interface AudioPreviewProps {
   file: File | null;
@@ -219,9 +220,9 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
   const controlButtonClasses = "p-1.5 rounded-full text-content-200 hover:bg-base-300/50 hover:text-content-100 disabled:opacity-50";
 
   return (
-    <div className="p-4 rounded-lg bg-base-200 border border-base-300 h-[144px] flex flex-col justify-center">
+    <div className="flex min-w-0 flex-col justify-center rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm sm:min-h-[144px]">
       {file ? (
-        <div className={`w-full h-full flex flex-col justify-between transition-opacity duration-300 ${isPlayerReady ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`flex h-full min-w-0 flex-col justify-between gap-3 transition-opacity duration-300 ${isPlayerReady ? 'opacity-100' : 'opacity-0'}`}>
             <div className="min-w-0">
                 <div className="flex justify-between items-baseline text-xs">
                      <p className="font-medium text-content-100 truncate" title={file.name}>
@@ -232,7 +233,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
                 <div ref={waveformRef} className={`w-full h-10 mt-3 ${isClipping ? 'cursor-crosshair' : 'cursor-pointer'}`} />
             </div>
 
-            <div className="flex justify-between items-center -mx-1 -mb-1">
+            <div className="-mx-1 -mb-1 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1">
                     <button onClick={handleToggleMute} title={isMuted ? "取消静音" : "静音"} className={controlButtonClasses} disabled={disabled}>
                         {isMuted ? <VolumeOffIcon className="w-4 h-4" /> : <VolumeUpIcon className="w-4 h-4" />}
@@ -274,10 +275,12 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, 
             </div>
         </div>
       ) : (
-        <div className="text-center text-content-200">
-            <p className="font-medium">音频预览</p>
-            <p className="text-sm">上传或录制后将在此处显示</p>
-        </div>
+        <EmptyState
+          icon={<SoundWaveIcon className="h-5 w-5" />}
+          title="等待音频"
+          description="录音或上传后，可在这里播放、剪辑和检查波形。"
+          className="min-h-[100px] sm:min-h-[132px]"
+        />
       )}
     </div>
   );

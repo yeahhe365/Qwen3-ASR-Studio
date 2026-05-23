@@ -54,18 +54,18 @@ const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) =>
 }
 
 const languageDisplayNames: Record<Language, string> = {
-  [Language.AUTO]: "🌐 自动识别 / Auto Detect",
-  [Language.CHINESE]: "🇨🇳 中文 / Chinese",
-  [Language.ENGLISH]: "🇺🇸 英文 / English",
-  [Language.JAPANESE]: "🇯🇵 日文 / Japanese",
-  [Language.KOREAN]: "🇰🇷 韩文 / Korean",
-  [Language.SPANISH]: "🇪🇸 西班牙文 / Spanish",
-  [Language.FRENCH]: "🇫🇷 法文 / French",
-  [Language.GERMAN]: "🇩🇪 德文 / German",
-  [Language.ARABIC]: "🇸🇦 阿拉伯文 / Arabic",
-  [Language.ITALIAN]: "🇮🇹 意大利文 / Italian",
-  [Language.RUSSIAN]: "🇷🇺 俄文 / Russian",
-  [Language.PORTUGUESE]: "🇵🇹 葡萄牙文 / Portuguese",
+  [Language.AUTO]: "自动识别",
+  [Language.CHINESE]: "中文",
+  [Language.ENGLISH]: "英文",
+  [Language.JAPANESE]: "日文",
+  [Language.KOREAN]: "韩文",
+  [Language.SPANISH]: "西班牙文",
+  [Language.FRENCH]: "法文",
+  [Language.GERMAN]: "德文",
+  [Language.ARABIC]: "阿拉伯文",
+  [Language.ITALIAN]: "意大利文",
+  [Language.RUSSIAN]: "俄文",
+  [Language.PORTUGUESE]: "葡萄牙文",
 };
 
 const compressionLevelDisplayNames: Record<CompressionLevel, string> = {
@@ -127,10 +127,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const TabButton: React.FC<{ tabName: SettingTab; label: string }> = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
+      className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
         activeTab === tabName
-          ? 'border-brand-primary text-brand-primary'
-          : 'border-transparent text-content-200 hover:border-base-300 hover:text-content-100'
+          ? 'bg-brand-primary text-white shadow-sm'
+          : 'text-content-200 hover:bg-base-300/60 hover:text-content-100'
       }`}
       role="tab"
       aria-selected={activeTab === tabName}
@@ -282,21 +282,24 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     <div className="fixed inset-0 z-50" aria-labelledby="settings-title" role="dialog" aria-modal="true">
       <div className="fixed inset-0 bg-black bg-opacity-60 transition-opacity" aria-hidden="true" onClick={onClose}></div>
       <div className="flex items-center justify-center min-h-full p-4">
-        <div className="relative w-full max-w-lg bg-base-200 text-content-100 rounded-lg shadow-xl border border-base-300 transform transition-all max-h-[90vh] flex flex-col">
-          <div className="flex-shrink-0 flex items-center justify-between p-8 pb-4 bg-base-200">
-            <h2 id="settings-title" className="text-xl font-bold">设置</h2>
-            <button onClick={onClose} aria-label="关闭设置" className="p-1 rounded-full text-content-200 hover:bg-base-300 hover:text-content-100 transition-colors">
-              <CloseIcon className="w-6 h-6" />
+        <div className="relative flex max-h-[90vh] w-full max-w-xl transform flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200 text-content-100 shadow-xl transition-all">
+          <div className="flex flex-shrink-0 items-start justify-between gap-4 bg-base-200 p-5 pb-4 sm:p-6">
+            <div>
+              <h2 id="settings-title" className="text-xl font-bold">设置</h2>
+              <p className="mt-1 text-sm text-content-200">调整识别、录音和应用偏好。</p>
+            </div>
+            <button onClick={onClose} aria-label="关闭设置" className="rounded-lg p-2 text-content-200 transition-colors hover:bg-base-300 hover:text-content-100">
+              <CloseIcon className="h-5 w-5" />
             </button>
           </div>
-          <div className="flex-shrink-0 border-b border-base-300">
-            <nav className="flex space-x-2 px-8" role="tablist" aria-label="设置">
+          <div className="flex-shrink-0 border-y border-base-300 px-5 py-3 sm:px-6">
+            <nav className="grid grid-cols-3 gap-1 rounded-lg border border-base-300 bg-base-100 p-1" role="tablist" aria-label="设置">
               <TabButton tabName="general" label="常规" />
               <TabButton tabName="transcription" label="转录" />
               <TabButton tabName="about" label="关于" />
             </nav>
           </div>
-          <div className="flex-grow p-8 overflow-y-auto h-[600px]" role="tabpanel">
+          <div className="h-[min(600px,62vh)] flex-grow overflow-y-auto p-5 sm:p-6" role="tabpanel">
             {renderTabContent()}
           </div>
         </div>

@@ -42,27 +42,27 @@ export const AudioUploader = forwardRef<AudioUploaderHandle, AudioUploaderProps>
   };
   
   return (
-    <div className="p-4 rounded-lg bg-base-200 border border-base-300">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
       {/* Tab switcher */}
       <div role="tablist" aria-label="Audio input method">
         <div className="flex -mx-4 -mt-4 mb-4 border-b border-base-300">
           <button
             onClick={() => setActiveTab('record')}
-            className={`flex-1 flex items-center justify-center gap-2 p-3 text-center font-medium transition-colors ${activeTab === 'record' ? 'font-semibold text-brand-primary' : 'text-content-200 hover:bg-base-300/50'}`}
+            className={`flex min-w-0 flex-1 items-center justify-center gap-2 p-3 text-center font-medium transition-colors ${activeTab === 'record' ? 'font-semibold text-brand-primary' : 'text-content-200 hover:bg-base-300/50'}`}
             aria-selected={activeTab === 'record'}
             role="tab"
           >
-            <MicrophoneIcon className="w-5 h-5" />
-            <span>录音</span>
+            <MicrophoneIcon className="h-5 w-5 flex-shrink-0" />
+            <span className="truncate">录音</span>
           </button>
           <button
             onClick={() => setActiveTab('upload')}
-            className={`flex-1 flex items-center justify-center gap-2 p-3 text-center font-medium transition-colors ${activeTab === 'upload' ? 'font-semibold text-brand-primary' : 'text-content-200 hover:bg-base-300/50'}`}
+            className={`flex min-w-0 flex-1 items-center justify-center gap-2 p-3 text-center font-medium transition-colors ${activeTab === 'upload' ? 'font-semibold text-brand-primary' : 'text-content-200 hover:bg-base-300/50'}`}
             aria-selected={activeTab === 'upload'}
             role="tab"
           >
-            <UploadIcon className="w-5 h-5" />
-            <span>文件上传</span>
+            <UploadIcon className="h-5 w-5 flex-shrink-0" />
+            <span className="truncate">上传</span>
           </button>
         </div>
       </div>

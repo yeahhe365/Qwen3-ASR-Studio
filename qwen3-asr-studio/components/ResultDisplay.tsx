@@ -2,6 +2,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { LanguageIcon } from './icons/LanguageIcon';
 import { LoaderIcon } from './icons/LoaderIcon';
+import { EmptyState } from './EmptyState';
 
 interface ResultDisplayProps {
   transcription: string;
@@ -84,27 +85,27 @@ export const ResultDisplay = forwardRef<ResultDisplayHandle, ResultDisplayProps>
     const hasResult = transcription || (detectedLanguage && transcriptionMode === 'single');
 
     return (
-      <div className="flex flex-col rounded-lg bg-base-200 border border-base-300 flex-grow min-h-[250px] md:min-h-0 shadow-sm">
-        <div className="flex items-center justify-between px-2 border-b border-base-300">
-          <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-base-200">
+      <div className="flex min-w-0 flex-grow flex-col rounded-lg border border-base-300 bg-base-200 shadow-sm md:min-h-0">
+        <div className="flex flex-col gap-2 border-b border-base-300 px-2 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-0">
+          <div className="flex w-full min-w-0 items-center gap-1 rounded-lg bg-base-200 p-1 sm:w-auto">
             <button
               onClick={() => onModeChange('single')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+              className={`min-w-0 flex-1 rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 sm:flex-none ${
                 transcriptionMode === 'single' ? 'bg-brand-primary text-white shadow' : 'text-content-200 hover:bg-base-300'
               }`}
             >
-              单次模式
+              单次
             </button>
             <button
               onClick={() => onModeChange('notes')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+              className={`min-w-0 flex-1 rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200 sm:flex-none ${
                 transcriptionMode === 'notes' ? 'bg-brand-primary text-white shadow' : 'text-content-200 hover:bg-base-300'
               }`}
             >
-              笔记模式
+              笔记
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             {transcriptionMode === 'single' && !isLoading && (
               <>
                 {detectedLanguage && (
@@ -132,7 +133,7 @@ export const ResultDisplay = forwardRef<ResultDisplayHandle, ResultDisplayProps>
             )}
           </div>
         </div>
-        <div className="relative p-5 rounded-b-lg bg-base-100 flex-grow overflow-y-auto">
+        <div className="relative min-h-[220px] flex-grow overflow-y-auto rounded-b-lg bg-base-100 p-4 sm:min-h-[260px] sm:p-5">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center h-full text-center bg-base-100/80 backdrop-blur-sm z-10">
               <LoaderIcon color="var(--color-brand-primary)" className="h-10" />
@@ -156,13 +157,12 @@ export const ResultDisplay = forwardRef<ResultDisplayHandle, ResultDisplayProps>
                   {transcription}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full min-h-[150px] md:min-h-full">
-                  <div className="w-16 h-16 flex items-center justify-center bg-base-200 rounded-full">
-                      <LanguageIcon className="w-8 h-8 text-base-300"/>
-                  </div>
-                  <p className="mt-4 font-medium text-content-200">识别结果将显示在这里</p>
-                  <p className="text-sm text-content-200">上传或录制音频后开始</p>
-                </div>
+                <EmptyState
+                  icon={<LanguageIcon className="h-5 w-5" />}
+                  title="识别结果将显示在这里"
+                  description="先录音或上传音频，再点击识别开始处理。"
+                  className="min-h-[200px] sm:min-h-[220px]"
+                />
               )
             )
           )}
