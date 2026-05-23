@@ -4,6 +4,7 @@ export type TranscriptionMode = 'single' | 'notes';
 export enum AsrProvider {
   QWEN = 'qwen',
   DOUBAO = 'doubao',
+  GEMINI = 'gemini',
 }
 
 export interface AsrProviderConfig {
@@ -11,6 +12,7 @@ export interface AsrProviderConfig {
   qwenApiKey: string;
   doubaoApiKey: string;
   doubaoAccessKey: string;
+  geminiApiKey: string;
 }
 
 export type Notification = {

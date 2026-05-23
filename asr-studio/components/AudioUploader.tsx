@@ -44,8 +44,8 @@ export const AudioUploader = forwardRef<AudioUploaderHandle, AudioUploaderProps>
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
       {/* Tab switcher */}
-      <div role="tablist" aria-label="Audio input method">
-        <div className="flex -mx-4 -mt-4 mb-4 border-b border-base-300">
+      <div role="tablist" aria-label="Audio input method" className="-mx-4 -mt-4 mb-4 overflow-hidden border-b border-base-300">
+        <div className="flex">
           <button
             onClick={() => setActiveTab('record')}
             className={`flex min-w-0 flex-1 items-center justify-center gap-2 p-3 text-center font-medium transition-colors ${activeTab === 'record' ? 'font-semibold text-brand-primary' : 'text-content-200 hover:bg-base-300/50'}`}

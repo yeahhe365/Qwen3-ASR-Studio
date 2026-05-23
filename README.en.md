@@ -4,17 +4,17 @@
   <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
-A modern Web UI for Qwen and Doubao ASR with recording, PWA support, local caching, and fast speech transcription workflows.
+A modern Web UI for Qwen, Doubao, and Gemini ASR-style transcription with recording, PWA support, local caching, and fast speech workflows.
 
 ## Overview
 
-A modern Web UI for Qwen and Doubao ASR with recording, PWA support, local caching, and fast speech transcription workflows.
+A modern Web UI for Qwen, Doubao, and Gemini ASR-style transcription with recording, PWA support, local caching, and fast speech workflows.
 
 ## Features
 
 - Record audio and transcribe it in the browser.
 - PWA support for desktop and mobile workflows.
-- Uses provider adapters for the official Qwen ASR API and Doubao flash ASR API.
+- Uses provider adapters for the official Qwen ASR API, Doubao flash ASR API, and Gemini audio understanding API.
 - Frontend built with Vite, React, and TypeScript.
 
 ## Quick Start
@@ -30,7 +30,7 @@ The frontend development server normally starts at `http://localhost:5173`.
 
 ## Configuration
 
-- Choose Qwen or Doubao in the in-app settings panel and configure the matching API credentials.
+- Choose Qwen, Doubao, or Gemini in the in-app settings panel and configure the matching API credentials.
 
 ## Tech Stack
 
@@ -39,6 +39,7 @@ The frontend development server normally starts at `http://localhost:5173`.
 - Vite
 - Qwen ASR
 - Doubao ASR
+- Gemini API
 
 ## Project Structure
 

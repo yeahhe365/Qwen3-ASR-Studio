@@ -5,6 +5,9 @@ import {
   DOUBAO_ASR_DOCS_URL,
   DOUBAO_ASR_MODEL,
   DOUBAO_ASR_RESOURCE_ID,
+  GEMINI_ASR_API_URL,
+  GEMINI_ASR_DOCS_URL,
+  GEMINI_ASR_MODEL,
   QWEN_ASR_API_URL,
   QWEN_ASR_DOCS_URL,
   QWEN_ASR_MODEL,
@@ -37,6 +40,8 @@ interface SettingsPanelProps {
   setDoubaoApiKey: (key: string) => void;
   doubaoAccessKey: string;
   setDoubaoAccessKey: (key: string) => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
   onClearHistory: () => void;
   onRestoreDefaults: () => void;
   disabled?: boolean;
@@ -113,6 +118,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   setDoubaoApiKey,
   doubaoAccessKey,
   setDoubaoAccessKey,
+  geminiApiKey,
+  setGeminiApiKey,
   onClearHistory,
   onRestoreDefaults,
   disabled,
@@ -205,6 +212,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               <div className="flex items-center gap-1 rounded-lg border border-base-300 bg-base-100 p-1">
                 <button onClick={() => setAsrProvider(AsrProvider.QWEN)} className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${asrProvider === AsrProvider.QWEN ? 'bg-brand-primary text-white' : 'hover:bg-base-300'}`}>Qwen</button>
                 <button onClick={() => setAsrProvider(AsrProvider.DOUBAO)} className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${asrProvider === AsrProvider.DOUBAO ? 'bg-brand-primary text-white' : 'hover:bg-base-300'}`}>豆包</button>
+                <button onClick={() => setAsrProvider(AsrProvider.GEMINI)} className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${asrProvider === AsrProvider.GEMINI ? 'bg-brand-primary text-white' : 'hover:bg-base-300'}`}>Gemini</button>
               </div>
             </div>
             {asrProvider === AsrProvider.QWEN ? (
@@ -221,7 +229,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   <input id="qwen-api-key-setting" type="password" value={qwenApiKey} onChange={(e) => setQwenApiKey(e.target.value)} disabled={disabled} placeholder="sk-xxxxxxxxxxxxxxxx" className="mt-2 w-full px-3 py-2 text-sm rounded-md shadow-sm bg-base-100 border border-base-300 text-content-100 placeholder-content-200 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-60" />
                 </div>
               </>
-            ) : (
+            ) : asrProvider === AsrProvider.DOUBAO ? (
               <>
                 <div className="rounded-md border border-base-300 bg-base-100 px-3 py-3">
                   <p className="text-base font-semibold text-content-100">豆包语音识别极速版</p>
@@ -241,6 +249,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     <p className="text-sm text-content-200 font-normal">仅旧版鉴权需要；留空时使用新版 X-Api-Key 鉴权。</p>
                   </label>
                   <input id="doubao-access-key-setting" type="password" value={doubaoAccessKey} onChange={(e) => setDoubaoAccessKey(e.target.value)} disabled={disabled} placeholder="旧版 Access Key，可留空" className="mt-2 w-full px-3 py-2 text-sm rounded-md shadow-sm bg-base-100 border border-base-300 text-content-100 placeholder-content-200 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-60" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-md border border-base-300 bg-base-100 px-3 py-3">
+                  <p className="text-base font-semibold text-content-100">Google Gemini API</p>
+                  <p className="mt-1 break-all text-sm text-content-200">{GEMINI_ASR_MODEL} · {GEMINI_ASR_API_URL}</p>
+                  <p className="mt-2 text-sm text-content-200">当前使用 Gemini 多模态音频输入，语言、ITN 与上下文通过提示词传入。</p>
+                </div>
+                <div>
+                  <label htmlFor="gemini-api-key-setting" className="text-base font-medium">
+                    API Key
+                    <p className="text-sm text-content-200 font-normal">用于调用 Google Gemini generateContent 接口。</p>
+                  </label>
+                  <input id="gemini-api-key-setting" type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} disabled={disabled} placeholder="AIza..." className="mt-2 w-full px-3 py-2 text-sm rounded-md shadow-sm bg-base-100 border border-base-300 text-content-100 placeholder-content-200 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-60" />
                 </div>
               </>
             )}
@@ -298,6 +321,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div>
               <p className="text-sm text-content-200">豆包语音识别极速版文档。</p>
               <a href={DOUBAO_ASR_DOCS_URL} target="_blank" rel="noopener noreferrer" className="mt-1 text-sm text-brand-primary hover:underline block truncate">{DOUBAO_ASR_DOCS_URL}</a>
+            </div>
+            <div>
+              <p className="text-sm text-content-200">Gemini 音频理解 API 文档。</p>
+              <a href={GEMINI_ASR_DOCS_URL} target="_blank" rel="noopener noreferrer" className="mt-1 text-sm text-brand-primary hover:underline block truncate">{GEMINI_ASR_DOCS_URL}</a>
             </div>
           </div>
         );

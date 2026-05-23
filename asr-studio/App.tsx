@@ -71,12 +71,14 @@ export default function App() {
   const [qwenApiKey, setQwenApiKey] = usePersistentState('qwenApiKey', '');
   const [doubaoApiKey, setDoubaoApiKey] = usePersistentState('doubaoApiKey', '');
   const [doubaoAccessKey, setDoubaoAccessKey] = usePersistentState('doubaoAccessKey', '');
+  const [geminiApiKey, setGeminiApiKey] = usePersistentState('geminiApiKey', '');
   const asrConfig: AsrProviderConfig = useMemo(() => ({
     provider: asrProvider,
     qwenApiKey,
     doubaoApiKey,
     doubaoAccessKey,
-  }), [asrProvider, doubaoAccessKey, doubaoApiKey, qwenApiKey]);
+    geminiApiKey,
+  }), [asrProvider, doubaoAccessKey, doubaoApiKey, geminiApiKey, qwenApiKey]);
 
   const audioUploaderRef = useRef<AudioUploaderHandle>(null);
   const resultDisplayRef = useRef<ResultDisplayHandle>(null);
@@ -221,6 +223,7 @@ export default function App() {
     setQwenApiKey('');
     setDoubaoApiKey('');
     setDoubaoAccessKey('');
+    setGeminiApiKey('');
     setIsSettingsOpen(false);
     notify('已恢复默认设置', 'success');
   }, [
@@ -232,6 +235,7 @@ export default function App() {
     setDoubaoAccessKey,
     setDoubaoApiKey,
     setEnableItn,
+    setGeminiApiKey,
     setLanguage,
     setQwenApiKey,
     setSelectedDeviceId,
@@ -381,6 +385,8 @@ export default function App() {
         setDoubaoApiKey={setDoubaoApiKey}
         doubaoAccessKey={doubaoAccessKey}
         setDoubaoAccessKey={setDoubaoAccessKey}
+        geminiApiKey={geminiApiKey}
+        setGeminiApiKey={setGeminiApiKey}
         onClearHistory={handleClearHistory}
         onRestoreDefaults={handleRestoreDefaults}
         canInstall={canInstall}

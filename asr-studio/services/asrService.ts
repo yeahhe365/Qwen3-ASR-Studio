@@ -1,5 +1,6 @@
 import { AsrProvider, type AsrProviderConfig, type Language } from '../types';
 import { transcribeWithDoubao } from './providers/doubaoProvider';
+import { transcribeWithGemini } from './providers/geminiProvider';
 import { transcribeWithQwen } from './providers/qwenProvider';
 
 const MAX_RETRIES = 3;
@@ -20,28 +21,14 @@ export const transcribeAudio = async (
       onProgress(attempt > 1 ? `正在进行第 ${attempt} 次尝试...` : '正在识别，请稍候...');
       onProgress('正在准备音频数据...');
 
-      const result = config.provider === AsrProvider.DOUBAO
-        ? await transcribeWithDoubao(
-            audioFile,
-            context,
-            language,
-            enableItn,
-            {
-              apiKey: config.doubaoApiKey,
-              accessKey: config.doubaoAccessKey,
-            },
-            signal
-          )
-        : await transcribeWithQwen(
-            audioFile,
-            context,
-            language,
-            enableItn,
-            {
-              apiKey: config.qwenApiKey,
-            },
-            signal
-          );
+      const result = await transcribeWithConfiguredProvider(
+        audioFile,
+        context,
+        language,
+        enableItn,
+        config,
+        signal,
+      );
 
       onProgress('识别成功！');
       return result;
@@ -65,4 +52,51 @@ export const transcribeAudio = async (
   }
 
   throw new Error('Transcription failed after all retries.');
+};
+
+const transcribeWithConfiguredProvider = (
+  audioFile: File,
+  context: string,
+  language: Language,
+  enableItn: boolean,
+  config: AsrProviderConfig,
+  signal: AbortSignal,
+) => {
+  switch (config.provider) {
+    case AsrProvider.DOUBAO:
+      return transcribeWithDoubao(
+        audioFile,
+        context,
+        language,
+        enableItn,
+        {
+          apiKey: config.doubaoApiKey,
+          accessKey: config.doubaoAccessKey,
+        },
+        signal,
+      );
+    case AsrProvider.GEMINI:
+      return transcribeWithGemini(
+        audioFile,
+        context,
+        language,
+        enableItn,
+        {
+          apiKey: config.geminiApiKey,
+        },
+        signal,
+      );
+    case AsrProvider.QWEN:
+    default:
+      return transcribeWithQwen(
+        audioFile,
+        context,
+        language,
+        enableItn,
+        {
+          apiKey: config.qwenApiKey,
+        },
+        signal,
+      );
+  }
 };

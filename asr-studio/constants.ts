@@ -7,6 +7,10 @@ export const DOUBAO_ASR_MODEL = 'bigmodel';
 export const DOUBAO_ASR_RESOURCE_ID = 'volc.bigasr.auc_turbo';
 export const DOUBAO_ASR_DOCS_URL = 'https://www.volcengine.com/docs/6561/1631584';
 
+export const GEMINI_ASR_MODEL = 'gemini-3.5-flash';
+export const GEMINI_ASR_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_ASR_MODEL}:generateContent`;
+export const GEMINI_ASR_DOCS_URL = 'https://ai.google.dev/gemini-api/docs/audio';
+
 export const PIP_WINDOW_OPTIONS = {
   width: 480,
   height: 70,
