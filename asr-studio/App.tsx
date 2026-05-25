@@ -105,6 +105,7 @@ export default function App() {
     isLoading,
     loadingMessage,
     isRecording,
+    isRealtimeTranscribing,
     copied,
     elapsedTime,
     realtimeElapsedTime,
@@ -112,6 +113,7 @@ export default function App() {
     handleCopy,
     handleFileChange: changeAudioFile,
     handleRecordingChange,
+    handleRealtimeTranscribe,
     handleRetry,
     handleTranscribe,
     handleTranscriptionResultFromPip,
@@ -123,6 +125,7 @@ export default function App() {
     autoCopy,
     compressionLevel,
     asrConfig,
+    selectedDeviceId,
     notify,
     clearNotification,
     prependHistoryItem,
@@ -254,6 +257,7 @@ export default function App() {
                 transcription={transcription}
                 detectedLanguage={detectedLanguage}
                 isLoading={isLoading}
+                isRealtimeTranscribing={isRealtimeTranscribing}
                 loadingStatus={loadingMessage}
                 elapsedTime={elapsedTime}
               />
@@ -278,6 +282,19 @@ export default function App() {
                       '识别'
                     )}
                   </button>
+                  {asrProvider === AsrProvider.DOUBAO && (
+                    <button
+                      onClick={handleRealtimeTranscribe}
+                      disabled={(isLoading && !isRealtimeTranscribing) || isRecording}
+                      className={`flex min-w-0 flex-1 items-center justify-center rounded-xl px-4 py-3 text-base font-semibold text-white shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-100 disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200 disabled:shadow-none sm:px-6 ${
+                        isRealtimeTranscribing
+                          ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500/40'
+                          : 'bg-sky-600 hover:bg-sky-700 focus:ring-sky-500/40'
+                      }`}
+                    >
+                      <span className="truncate">{isRealtimeTranscribing ? '停止实时识别' : '实时识别'}</span>
+                    </button>
+                  )}
                   {isLoading ? (
                     <button
                       onClick={handleCancel}

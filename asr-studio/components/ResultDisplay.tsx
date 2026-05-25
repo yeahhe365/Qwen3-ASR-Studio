@@ -8,6 +8,7 @@ interface ResultDisplayProps {
   transcription: string;
   detectedLanguage: string;
   isLoading: boolean;
+  isRealtimeTranscribing?: boolean;
   loadingStatus?: string;
   elapsedTime?: number | null;
 }
@@ -21,7 +22,14 @@ const loadingMessages = [
   '快好了...',
 ];
 
-export const ResultDisplay: React.FC<ResultDisplayProps> = ({ transcription, detectedLanguage, isLoading, loadingStatus, elapsedTime }) => {
+export const ResultDisplay: React.FC<ResultDisplayProps> = ({
+  transcription,
+  detectedLanguage,
+  isLoading,
+  isRealtimeTranscribing,
+  loadingStatus,
+  elapsedTime,
+}) => {
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
 
   useEffect(() => {
@@ -67,13 +75,13 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ transcription, det
         </div>
       </div>
       <div className="relative min-h-[240px] flex-grow overflow-y-auto rounded-b-xl bg-base-100 p-4 sm:min-h-[300px] sm:p-5">
-        {isLoading && (
+        {isLoading && !isRealtimeTranscribing && (
           <div className="absolute inset-0 z-10 flex h-full flex-col items-center justify-center bg-base-100/80 text-center backdrop-blur-sm">
             <LoaderIcon color="var(--color-brand-primary)" className="h-10" />
           </div>
         )}
 
-        {!isLoading && (
+        {(!isLoading || isRealtimeTranscribing) && (
           hasResult ? (
             <div className="whitespace-pre-wrap text-[15px] leading-7 text-content-100">
               {transcription}

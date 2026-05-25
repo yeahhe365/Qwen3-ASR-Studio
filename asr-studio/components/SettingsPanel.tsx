@@ -10,6 +10,8 @@ import {
   DOUBAO_ASR_API_URL,
   DOUBAO_ASR_MODEL,
   DOUBAO_ASR_RESOURCE_ID,
+  DOUBAO_REALTIME_ASR_PROXY_PATH,
+  DOUBAO_REALTIME_ASR_RESOURCE_ID,
   GEMINI_ASR_API_URL,
   GEMINI_ASR_MODEL,
   QWEN_ASR_API_URL,
@@ -352,7 +354,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <ProviderSummary
             title="豆包语音识别极速版"
             details={`${DOUBAO_ASR_MODEL} · ${DOUBAO_ASR_RESOURCE_ID} · ${DOUBAO_ASR_API_URL}`}
-            note="当前使用音频 Base64 直传、自动语种识别、ITN 和标点；上下文提示仅 Qwen 模式使用。"
+            note={`普通识别使用音频 Base64 直传；实时识别使用 ${DOUBAO_REALTIME_ASR_RESOURCE_ID}，通过同源 ${DOUBAO_REALTIME_ASR_PROXY_PATH} WebSocket 代理转发鉴权 Header。`}
           />
           <SectionBlock title="凭据">
             <div className="space-y-4 py-3">

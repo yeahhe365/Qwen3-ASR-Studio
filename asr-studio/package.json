@@ -6,16 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "doubao:realtime-proxy": "node server/doubaoRealtimeProxy.js",
     "test": "tsx --test test/*.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "wavesurfer.js": "^7.10.1"
+    "wavesurfer.js": "^7.10.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.22.3",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

@@ -9,6 +9,10 @@ import {
 } from '../services/cacheService';
 import { compressAudio } from '../services/audioService';
 import { transcribeAudio } from '../services/asrService';
+import {
+  startDoubaoRealtimeTranscription,
+  type DoubaoRealtimeSession,
+} from '../services/providers/doubaoRealtimeProvider';
 import type {
   AsrProviderConfig,
   CompressionLevel,
@@ -37,6 +41,7 @@ type UseTranscriptionFlowOptions = {
   autoCopy: boolean;
   compressionLevel: CompressionLevel;
   asrConfig: AsrProviderConfig;
+  selectedDeviceId: string;
   notify: Notify;
   clearNotification: () => void;
   prependHistoryItem: PrependHistoryItem;
@@ -50,6 +55,7 @@ export function useTranscriptionFlow({
   autoCopy,
   compressionLevel,
   asrConfig,
+  selectedDeviceId,
   notify,
   clearNotification,
   prependHistoryItem,
@@ -62,9 +68,12 @@ export function useTranscriptionFlow({
   const [loadingMessage, setLoadingMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [transcribeAfterRecording, setTranscribeAfterRecording] = useState(false);
+  const [isRealtimeTranscribing, setIsRealtimeTranscribing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const realtimeSessionRef = useRef<DoubaoRealtimeSession | null>(null);
+  const realtimeStartTimeRef = useRef<number | null>(null);
   const realtimeElapsedTime = useElapsedTimer(isLoading);
 
   const createHistoryItem = useCallback((file: File, result: TranscriptionResult): HistoryItem => ({
@@ -236,9 +245,124 @@ export function useTranscriptionFlow({
     await transcribeNow(audioFile, false);
   }, [audioFile, audioUploaderRef, isRecording, notify, transcribeNow]);
 
+  const stopRealtimeTranscription = useCallback(async () => {
+    const session = realtimeSessionRef.current;
+    if (!session) {
+      return;
+    }
+
+    realtimeSessionRef.current = null;
+    setIsLoading(true);
+    setIsRealtimeTranscribing(false);
+    setLoadingMessage('正在结束实时识别...');
+
+    try {
+      const result = await session.stop();
+      const finalResult = {
+        transcription: result.transcription,
+        detectedLanguage: '自动识别',
+      };
+
+      if (result.audioFile) {
+        setAudioFile(result.audioFile);
+        await prependHistoryItem(createHistoryItem(result.audioFile, finalResult));
+      }
+
+      if (autoCopy && result.transcription) {
+        try {
+          await navigator.clipboard.writeText(result.transcription);
+          notify('实时识别结果已复制到剪贴板', 'success');
+        } catch (copyError) {
+          console.error('Failed to auto-copy realtime result:', copyError);
+          notify('实时识别完成，但自动复制失败', 'error');
+        }
+      } else {
+        notify('实时识别已完成', 'success');
+      }
+
+      setTranscription(result.transcription);
+      setDetectedLanguage(finalResult.detectedLanguage);
+    } catch (error) {
+      console.error('Realtime transcription stop error:', error);
+      const errorMessage = error instanceof Error ? error.message : '结束实时识别时发生未知错误。';
+      notify(errorMessage, 'error');
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+      const startedAt = realtimeStartTimeRef.current;
+      setElapsedTime(startedAt ? (Date.now() - startedAt) / 1000 : null);
+      realtimeStartTimeRef.current = null;
+    }
+  }, [autoCopy, createHistoryItem, notify, prependHistoryItem]);
+
+  const handleRealtimeTranscribe = useCallback(async () => {
+    if (realtimeSessionRef.current) {
+      await stopRealtimeTranscription();
+      return;
+    }
+
+    clearNotification();
+    setTranscription('');
+    setDetectedLanguage('');
+    setElapsedTime(null);
+    setLoadingMessage('正在启动实时识别...');
+    setIsLoading(true);
+    realtimeStartTimeRef.current = Date.now();
+
+    try {
+      const session = await startDoubaoRealtimeTranscription(
+        enableItn,
+        selectedDeviceId,
+        {
+          apiKey: asrConfig.doubaoApiKey,
+          accessKey: asrConfig.doubaoAccessKey,
+        },
+        {
+          onStatus: setLoadingMessage,
+          onPartialResult: (text) => {
+            setTranscription(text);
+            setDetectedLanguage('自动识别');
+          },
+          onFinalResult: (text) => {
+            setTranscription(text);
+            setDetectedLanguage(text ? '自动识别' : '');
+          },
+          onError: (error) => {
+            console.error('Realtime transcription error:', error);
+            notify(error.message, 'error');
+          },
+        },
+      );
+
+      realtimeSessionRef.current = session;
+      setIsRealtimeTranscribing(true);
+      setLoadingMessage('实时识别中...');
+    } catch (error) {
+      console.error('Realtime transcription error:', error);
+      const errorMessage = error instanceof Error ? error.message : '启动实时识别时发生未知错误。';
+      notify(errorMessage, 'error');
+      setIsLoading(false);
+      setLoadingMessage('');
+      realtimeStartTimeRef.current = null;
+    }
+  }, [
+    asrConfig.doubaoAccessKey,
+    asrConfig.doubaoApiKey,
+    clearNotification,
+    enableItn,
+    notify,
+    selectedDeviceId,
+    stopRealtimeTranscription,
+  ]);
+
   const handleCancel = useCallback(() => {
+    if (realtimeSessionRef.current) {
+      void stopRealtimeTranscription();
+      return;
+    }
+
     abortControllerRef.current?.abort();
-  }, []);
+  }, [stopRealtimeTranscription]);
 
   const handleCopy = useCallback(async () => {
     if (!transcription) {
@@ -306,6 +430,7 @@ export function useTranscriptionFlow({
     isLoading,
     loadingMessage,
     isRecording,
+    isRealtimeTranscribing,
     copied,
     elapsedTime,
     realtimeElapsedTime,
@@ -313,6 +438,7 @@ export function useTranscriptionFlow({
     handleCopy,
     handleFileChange,
     handleRecordingChange,
+    handleRealtimeTranscribe,
     handleRetry,
     handleTranscribe,
     handleTranscriptionResultFromPip,
