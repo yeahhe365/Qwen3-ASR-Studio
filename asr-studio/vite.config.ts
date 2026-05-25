@@ -1,5 +1,6 @@
 import path from 'path';
 import { randomUUID } from 'node:crypto';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import { defineConfig, type Plugin } from 'vite';
 import WebSocket, { WebSocketServer, type RawData } from 'ws';
 
@@ -87,7 +88,11 @@ const createDoubaoRealtimeProxyPlugin = (): Plugin => ({
 });
 
 export default defineConfig({
-  plugins: [createDoubaoRealtimeProxyPlugin()],
+  plugins: [basicSsl(), createDoubaoRealtimeProxyPlugin()],
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),

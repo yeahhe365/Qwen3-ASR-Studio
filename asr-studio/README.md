@@ -9,7 +9,9 @@ npm install
 npm run dev
 ```
 
-The development server normally starts at `http://localhost:5173`.
+The development server normally starts at `https://localhost:5173`.
+
+It listens on `0.0.0.0:5173` with a local HTTPS certificate, so phones or other computers on the same LAN can open `https://YOUR_LOCAL_IP:5173`. Accept the development certificate warning on first visit so browser microphone permissions are available outside localhost.
 
 ## Project Layout
 
