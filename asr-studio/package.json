@@ -20,7 +20,7 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
+    "@types/node": "^25.9.1",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "autoprefixer": "^10.4.20",
