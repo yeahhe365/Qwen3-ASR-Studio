@@ -1,18 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import WaveSurfer from 'wavesurfer.js';
-import RegionsPlugin, { type Region } from 'wavesurfer.js/plugins/regions';
+import React from 'react';
 import { SoundWaveIcon } from './icons/SoundWaveIcon';
-import { CloseIcon } from './icons/CloseIcon';
-import { DownloadIcon } from './icons/DownloadIcon';
-import { PlayIcon } from './icons/PlayIcon';
-import { PauseIcon } from './icons/PauseIcon';
-import { VolumeUpIcon } from './icons/VolumeUpIcon';
-import { VolumeOffIcon } from './icons/VolumeOffIcon';
-import { BackwardIcon } from './icons/BackwardIcon';
-import { FastForwardIcon } from './icons/FastForwardIcon';
-import { RetryIcon } from './icons/RetryIcon';
-import { ScissorsIcon } from './icons/ScissorsIcon';
-import { bufferToWav } from '../services/audioService';
+import { AudioPreviewControls } from './audio-preview/AudioPreviewControls';
+import { useAudioPreviewPlayer } from './audio-preview/useAudioPreviewPlayer';
+import { formatAudioFileSize, formatAudioTime } from '../services/audioFileUtils';
+import { getAudioSourceUrl } from '../services/remoteAudioFile';
 import { EmptyState } from './EmptyState';
 
 interface AudioPreviewProps {
@@ -21,267 +12,102 @@ interface AudioPreviewProps {
   disabled?: boolean;
 }
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-};
-
-const formatTime = (seconds: number): string => {
-  const date = new Date(0);
-  date.setSeconds(seconds || 0);
-  return date.toISOString().substring(14, 19);
-};
-
 export const AudioPreview: React.FC<AudioPreviewProps> = ({ file, onFileChange, disabled }) => {
-  const waveformRef = useRef<HTMLDivElement>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const regionsPluginRef = useRef<RegionsPlugin | null>(null);
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [isLooping, setIsLooping] = useState(false);
-  const [isClipping, setIsClipping] = useState(false);
-  const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
-  
-  const playbackRates = [1, 1.5, 2, 0.5];
-
-  useEffect(() => {
-    if (!file || !waveformRef.current) return;
-    
-    setIsPlayerReady(false);
-    setIsClipping(false);
-    setSelectedRegion(null);
-
-    const ws = WaveSurfer.create({
-      container: waveformRef.current,
-      height: 40,
-      waveColor: 'rgba(209, 213, 219, 0.6)', // base-300
-      progressColor: '#10b981', // brand-primary
-      cursorColor: 'rgb(243, 244, 246)', // content-100 dark
-      barWidth: 2,
-      barGap: 2,
-      barRadius: 2,
-      url: URL.createObjectURL(file),
-    });
-    wavesurferRef.current = ws;
-
-    const wsRegions = ws.registerPlugin(RegionsPlugin.create());
-    regionsPluginRef.current = wsRegions;
-
-    wsRegions.on('region-created', (region) => {
-        wsRegions.getRegions().forEach(r => {
-            if (r.id !== region.id) {
-                r.remove();
-            }
-        });
-        setSelectedRegion(region);
-    });
-
-    wsRegions.on('region-updated', (region) => {
-        setSelectedRegion(region);
-    });
-
-    wsRegions.on('region-clicked', (region, e) => {
-        e.stopPropagation();
-        region.play();
-    });
-
-    const setupWaveSurfer = () => {
-        if (!waveformRef.current) return;
-        const style = getComputedStyle(waveformRef.current);
-        ws.setOptions({
-            waveColor: style.getPropertyValue('--color-content-200'),
-            progressColor: style.getPropertyValue('--color-brand-primary'),
-            cursorColor: style.getPropertyValue('--color-content-100'),
-        });
-    }
-    setupWaveSurfer();
-    
-    ws.on('ready', () => {
-      setDuration(ws.getDuration());
-      setIsPlayerReady(true);
-    });
-    ws.on('audioprocess', (time) => setCurrentTime(time));
-    ws.on('play', () => setIsPlaying(true));
-    ws.on('pause', () => setIsPlaying(false));
-    ws.on('finish', () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-      if(!isLooping) ws.seekTo(0);
-    });
-
-    const observer = new MutationObserver(setupWaveSurfer);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-    return () => {
-      ws.destroy();
-      observer.disconnect();
-    };
-  }, [file, isLooping]);
-
-  const handlePlayPause = useCallback(() => wavesurferRef.current?.playPause(), []);
-  const handleSeek = (seconds: number) => () => {
-      if (!isClipping) wavesurferRef.current?.skip(seconds);
-  }
-  const handleToggleMute = useCallback(() => {
-    const ws = wavesurferRef.current;
-    if (!ws) return;
-    const newMuted = !isMuted;
-    ws.setMuted(newMuted);
-    setIsMuted(newMuted);
-    setVolume(newMuted ? 0 : 1);
-  }, [isMuted]);
-
-  const handleCyclePlaybackRate = useCallback(() => {
-    const ws = wavesurferRef.current;
-    if (!ws) return;
-    const currentIndex = playbackRates.indexOf(playbackRate);
-    const nextIndex = (currentIndex + 1) % playbackRates.length;
-    const newRate = playbackRates[nextIndex];
-    ws.setPlaybackRate(newRate, true);
-    setPlaybackRate(newRate);
-  }, [playbackRate, playbackRates]);
-
-  const handleToggleLoop = useCallback(() => setIsLooping(prev => !prev), []);
-
-  const handleClear = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    onFileChange(null);
-  };
-
-  const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleToggleClipping = useCallback(() => {
-    if (!regionsPluginRef.current) return;
-    const clipping = !isClipping;
-    setIsClipping(clipping);
-    if (clipping) {
-        regionsPluginRef.current.enableDragSelection({
-            color: 'rgba(16, 185, 129, 0.2)',
-        });
-    } else {
-        regionsPluginRef.current.disableDragSelection();
-        regionsPluginRef.current.clearRegions();
-        setSelectedRegion(null);
-    }
-  }, [isClipping]);
-
-  const handleSaveClip = useCallback(async () => {
-    if (!wavesurferRef.current || !selectedRegion || !file) return;
-
-    const originalBuffer = wavesurferRef.current.getDecodedData();
-    if (!originalBuffer) return;
-
-    const sampleRate = originalBuffer.sampleRate;
-    const numChannels = originalBuffer.numberOfChannels;
-    const startSample = Math.floor(selectedRegion.start * sampleRate);
-    const endSample = Math.floor(selectedRegion.end * sampleRate);
-    const clippedLength = endSample - startSample;
-
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const clippedBuffer = audioContext.createBuffer(numChannels, clippedLength, sampleRate);
-
-    for (let i = 0; i < numChannels; i++) {
-        const originalData = originalBuffer.getChannelData(i);
-        const clippedData = clippedBuffer.getChannelData(i);
-        const segment = originalData.subarray(startSample, endSample);
-        clippedData.set(segment);
-    }
-    
-    await audioContext.close();
-
-    const wavBlob = bufferToWav(clippedBuffer);
-    const newFileName = `${file.name.replace(/\.[^/.]+$/, "")}_clipped.wav`;
-    const newFile = new File([wavBlob], newFileName, { type: 'audio/wav' });
-
-    onFileChange(newFile);
-    setIsClipping(false);
-    setSelectedRegion(null);
-  }, [file, selectedRegion, onFileChange]);
-
-  const controlButtonClasses = "p-1.5 rounded-lg text-content-200 hover:bg-base-300/50 hover:text-content-100 disabled:opacity-50";
+  const {
+    waveformRef,
+    isPlayerReady,
+    isPlaying,
+    currentTime,
+    duration,
+    isMuted,
+    playbackRate,
+    isLooping,
+    isClipping,
+    canSaveClip,
+    playerError,
+    handleCyclePlaybackRate,
+    handleDownload,
+    handleClear,
+    handlePlayPause,
+    handleSaveClip,
+    handleSeek,
+    handleToggleClipping,
+    handleToggleLoop,
+    handleToggleMute,
+  } = useAudioPreviewPlayer({ file, onFileChange, disabled });
+  const isRemoteAudio = Boolean(file && getAudioSourceUrl(file));
+  const fileSizeLabel = file ? (isRemoteAudio ? '远程 URL' : formatAudioFileSize(file.size)) : '';
 
   return (
-    <div className="flex min-w-0 flex-col justify-center rounded-xl border border-base-300 bg-base-200 p-4 shadow-sm sm:min-h-[144px]">
-      {file ? (
-        <div className={`flex h-full min-w-0 flex-col justify-between gap-3 transition-opacity duration-300 ${isPlayerReady ? 'opacity-100' : 'opacity-0'}`}>
+    <div className="surface-panel w-full min-w-0 max-w-full overflow-hidden">
+      <div className="panel-header">
+        <div className="min-w-0">
+          <p className="eyebrow">Inspect</p>
+          <h2 className="panel-title mt-1">音频检查</h2>
+        </div>
+        {file && <span className="status-pill hidden font-mono sm:inline-flex">{fileSizeLabel}</span>}
+      </div>
+      <div className="p-4">
+        {file ? (
+          <div className="flex h-full min-w-0 flex-col justify-between gap-3">
             <div className="min-w-0">
-                <div className="flex items-baseline justify-between text-xs">
-                     <p className="truncate font-medium text-content-100" title={file.name}>
-                        {file.name}
-                    </p>
-                    <span className="ml-2 flex-shrink-0 rounded-full border border-base-300 bg-base-100 px-2 py-0.5 font-mono text-content-200">{formatTime(currentTime)} / {formatTime(duration)}</span>
+              <div className="flex items-start justify-between gap-3 text-xs">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-content-100" title={file.name}>
+                    {file.name}
+                  </p>
+                  <p className="mt-1 text-content-200 sm:hidden">{fileSizeLabel}</p>
                 </div>
-                <div ref={waveformRef} className={`w-full h-10 mt-3 ${isClipping ? 'cursor-crosshair' : 'cursor-pointer'}`} />
+                <span className="flex-shrink-0 rounded-md bg-base-100 px-2 py-1 font-mono text-content-200">
+                  {formatAudioTime(currentTime)} / {formatAudioTime(duration)}
+                </span>
+              </div>
+              <div className="surface-inset mt-3 px-2 py-1">
+                <div className="relative h-12 w-full">
+                  <div
+                    ref={waveformRef}
+                    className={`h-12 w-full ${isClipping ? 'cursor-crosshair' : 'cursor-pointer'} ${
+                      isPlayerReady && !playerError ? 'opacity-100' : 'opacity-35'
+                    }`}
+                    role="img"
+                    aria-label="音频波形"
+                  />
+                  {playerError && (
+                    <div
+                      role="alert"
+                      className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs font-medium text-red-500"
+                    >
+                      {playerError}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-2 pt-1 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-                <div className="flex min-w-0 flex-wrap items-center gap-1">
-                    <button onClick={handleToggleMute} title={isMuted ? "取消静音" : "静音"} className={controlButtonClasses} disabled={disabled}>
-                        {isMuted ? <VolumeOffIcon className="w-4 h-4" /> : <VolumeUpIcon className="w-4 h-4" />}
-                    </button>
-                    <button onClick={handleCyclePlaybackRate} title={`播放速度: ${playbackRate}x`} className="w-10 rounded-lg px-2 py-1 text-xs font-semibold text-content-200 hover:bg-base-300/50 hover:text-content-100 disabled:opacity-50" disabled={disabled}>
-                        {playbackRate}x
-                    </button>
-                    {isClipping && (
-                      <button onClick={handleSaveClip} disabled={!selectedRegion || disabled} title="保存剪辑" className="rounded-lg bg-brand-primary px-2 py-1 text-xs font-semibold text-white hover:bg-brand-secondary disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200">
-                        保存
-                      </button>
-                    )}
-                </div>
-                <div className="flex min-w-0 items-center justify-center gap-1">
-                    <button onClick={handleSeek(-5)} title="快退5秒" className={controlButtonClasses} disabled={disabled || isClipping}>
-                        <BackwardIcon className="w-5 h-5" />
-                    </button>
-                    <button onClick={handlePlayPause} title={isPlaying ? "暂停" : "播放"} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-base-300/50 p-2 text-content-100 hover:bg-base-300 disabled:opacity-50" disabled={disabled || !isPlayerReady}>
-                        {isPlaying ? <PauseIcon className="w-6 h-6" /> : <PlayIcon className="w-6 h-6" />}
-                    </button>
-                    <button onClick={handleSeek(5)} title="快进5秒" className={controlButtonClasses} disabled={disabled || isClipping}>
-                        <FastForwardIcon className="w-5 h-5" />
-                    </button>
-                </div>
-                <div className="flex min-w-0 flex-wrap items-center gap-1 sm:justify-end">
-                    <button onClick={handleToggleLoop} title="循环播放" className={`${controlButtonClasses} ${isLooping ? 'text-brand-primary' : ''}`} disabled={disabled}>
-                        <RetryIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={handleToggleClipping} title="修剪音频" className={`${controlButtonClasses} ${isClipping ? 'text-brand-primary bg-base-300/50' : ''}`} disabled={disabled}>
-                        <ScissorsIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={handleDownload} className={controlButtonClasses} disabled={disabled} title="下载音频">
-                        <DownloadIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={handleClear} className={controlButtonClasses} disabled={disabled} title="清除音频">
-                        <CloseIcon className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
-        </div>
-      ) : (
-        <EmptyState
-          icon={<SoundWaveIcon className="h-5 w-5" />}
-          title="等待音频"
-          description="录音或上传后，可在这里播放、剪辑和检查波形。"
-          className="min-h-[100px] sm:min-h-[132px]"
-        />
-      )}
+            <AudioPreviewControls
+              disabled={disabled}
+              isMuted={isMuted}
+              isClipping={isClipping}
+              isLooping={isLooping}
+              isPlayerReady={isPlayerReady}
+              isPlaying={isPlaying}
+              canSaveClip={canSaveClip}
+              playbackRate={playbackRate}
+              onCyclePlaybackRate={handleCyclePlaybackRate}
+              onDownload={handleDownload}
+              onClear={handleClear}
+              onPlayPause={handlePlayPause}
+              onSaveClip={handleSaveClip}
+              onSeek={handleSeek}
+              onToggleClipping={handleToggleClipping}
+              onToggleLoop={handleToggleLoop}
+              onToggleMute={handleToggleMute}
+            />
+          </div>
+        ) : (
+          <EmptyState icon={<SoundWaveIcon className="h-5 w-5" />} title="等待音频" className="min-h-[132px]" />
+        )}
+      </div>
     </div>
   );
 };

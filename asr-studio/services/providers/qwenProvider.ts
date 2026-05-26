@@ -1,6 +1,6 @@
-import { QWEN_ASR_API_URL, QWEN_ASR_MODEL } from '../../constants';
-import { Language } from '../../types';
-import { fileToBase64DataUrl } from '../asrUtils';
+import { QWEN_ASR_API_URL, QWEN_ASR_MODEL, QWEN_INLINE_AUDIO_LIMIT_BYTES } from '../../constants';
+import { Language, type TranscriptionResult } from '../../types';
+import { estimateDataUrlByteSize, fileToBase64DataUrl, formatByteSize } from '../fileUtils';
 
 type QwenAsrConfig = {
   apiKey: string;
@@ -22,6 +22,8 @@ type QwenChatCompletionResponse = {
   };
 };
 
+const createAbortError = () => new DOMException('Aborted', 'AbortError');
+
 const createSystemPrompt = (context: string, enableItn: boolean) => {
   const instructions = [
     '你是专业的语音识别助手。请只返回音频转写文本，不要添加解释、标题或 Markdown。',
@@ -39,7 +41,7 @@ const createSystemPrompt = (context: string, enableItn: boolean) => {
 
 const parseDetectedLanguage = (result: QwenChatCompletionResponse, fallback: Language) => {
   const annotations = result.choices?.[0]?.message?.annotations;
-  const languageAnnotation = annotations?.find(annotation => annotation.language);
+  const languageAnnotation = annotations?.find((annotation) => annotation.language);
 
   return languageAnnotation?.language || (fallback === Language.AUTO ? '自动识别' : fallback);
 };
@@ -49,6 +51,15 @@ const createAsrOptions = (language: Language, enableItn: boolean) => {
     ...(language === Language.AUTO ? {} : { language }),
     enable_itn: enableItn,
   };
+};
+
+const assertInlineAudioSize = (audioFile: File) => {
+  const estimatedSize = estimateDataUrlByteSize(audioFile);
+  if (estimatedSize > QWEN_INLINE_AUDIO_LIMIT_BYTES) {
+    throw new Error(
+      `Qwen 官方 API 的内联音频上限为 ${formatByteSize(QWEN_INLINE_AUDIO_LIMIT_BYTES)}（Base64 Data URL）。当前音频约 ${formatByteSize(estimatedSize)}，请压缩或裁剪后重试。`,
+    );
+  }
 };
 
 const parseQwenAsrResponse = (result: QwenChatCompletionResponse, fallbackLanguage: Language) => {
@@ -73,14 +84,23 @@ export const transcribeWithQwen = async (
   language: Language,
   enableItn: boolean,
   config: QwenAsrConfig,
-  signal: AbortSignal
-): Promise<{ transcription: string; detectedLanguage: string }> => {
+  signal: AbortSignal,
+): Promise<TranscriptionResult> => {
   const apiKey = config.apiKey.trim();
   if (!apiKey) {
     throw new Error('Qwen 官方 API Key 未设置。请在设置中配置。');
   }
 
+  assertInlineAudioSize(audioFile);
+  if (signal.aborted) {
+    throw createAbortError();
+  }
+
   const audioDataUrl = await fileToBase64DataUrl(audioFile);
+  if (signal.aborted) {
+    throw createAbortError();
+  }
+
   const response = await fetch(QWEN_ASR_API_URL, {
     method: 'POST',
     headers: {
@@ -106,12 +126,13 @@ export const transcribeWithQwen = async (
           ],
         },
       ],
+      stream: false,
       asr_options: createAsrOptions(language, enableItn),
     }),
     signal,
   });
 
-  const result = await response.json().catch(() => null) as QwenChatCompletionResponse | null;
+  const result = (await response.json().catch(() => null)) as QwenChatCompletionResponse | null;
 
   if (!response.ok) {
     const detail = result?.error?.message || `Qwen 官方 API 请求失败，状态码: ${response.status}`;

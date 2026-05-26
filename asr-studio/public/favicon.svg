@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ASR Studio">
+  <rect width="64" height="64" rx="14" fill="#0f172a"/>
+  <path d="M32 39a9 9 0 0 0 9-9v-3" fill="none" stroke="#f8fafc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 39a9 9 0 0 1-9-9v-3" fill="none" stroke="#f8fafc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 39v8" fill="none" stroke="#f8fafc" stroke-width="4" stroke-linecap="round"/>
+  <path d="M25 47h14" fill="none" stroke="#f8fafc" stroke-width="4" stroke-linecap="round"/>
+  <rect x="24" y="12" width="16" height="25" rx="8" fill="none" stroke="#f8fafc" stroke-width="4"/>
+  <path d="M17 29v4M47 29v4" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
+</svg>

@@ -20,7 +20,7 @@ class MockFileReader {
 
   readAsDataURL(file: File) {
     void file;
-    this.result = 'data:audio/webm;base64,dGVzdC1hdWRpbw==';
+    this.result = 'data:audio/wav;base64,dGVzdC1hdWRpbw==';
     queueMicrotask(() => this.onload?.());
   }
 }
@@ -36,18 +36,21 @@ describe('transcribeWithGemini', () => {
     globalThis.FileReader = MockFileReader as unknown as typeof FileReader;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ input, init });
-      return new Response(JSON.stringify({
-        candidates: [
-          {
-            content: {
-              parts: [{ text: '  会议将在 10 点开始。  ' }],
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: '  会议将在 10 点开始。  ' }],
+              },
             },
-          },
-        ],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
     }) as typeof fetch;
 
-    const file = new File(['audio'], 'meeting.webm', { type: 'audio/webm' });
+    const file = new File(['audio'], 'meeting.wav', { type: 'audio/wav' });
     const result = await transcribeWithGemini(
       file,
       '项目名是 ASR Studio',
@@ -73,29 +76,86 @@ describe('transcribeWithGemini', () => {
     assert.match(body.contents[0].parts[0].text, /启用 ITN/);
     assert.match(body.contents[0].parts[0].text, /ASR Studio/);
     assert.deepEqual(body.contents[0].parts[1].inlineData, {
-      mimeType: 'audio/webm',
+      mimeType: 'audio/wav',
       data: 'dGVzdC1hdWRpbw==',
     });
   });
 
   test('surfaces API error details', async () => {
     globalThis.FileReader = MockFileReader as unknown as typeof FileReader;
-    globalThis.fetch = (async () => new Response(JSON.stringify({
-      error: { message: 'API key not valid' },
-    }), { status: 400, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          error: { message: 'API key not valid' },
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )) as typeof fetch;
 
+    const file = new File(['audio'], 'meeting.wav', { type: 'audio/wav' });
+
+    await assert.rejects(
+      () =>
+        transcribeWithGemini(file, '', Language.AUTO, false, { apiKey: 'gemini-key' }, new AbortController().signal),
+      /API key not valid/,
+    );
+  });
+
+  test('does not call the API when aborted after audio data is prepared', async () => {
+    const controller = new AbortController();
+    let fetchCalls = 0;
+
+    class AbortingFileReader {
+      result: string | ArrayBuffer | null = null;
+      onload: null | (() => void) = null;
+      onerror: null | ((error: Error) => void) = null;
+
+      readAsDataURL(file: File) {
+        void file;
+        this.result = 'data:audio/wav;base64,dGVzdC1hdWRpbw==';
+        controller.abort();
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+
+    globalThis.FileReader = AbortingFileReader as unknown as typeof FileReader;
+    globalThis.fetch = (async () => {
+      fetchCalls += 1;
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch;
+
+    const file = new File(['audio'], 'meeting.wav', { type: 'audio/wav' });
+
+    await assert.rejects(
+      () => transcribeWithGemini(file, '', Language.AUTO, false, { apiKey: 'gemini-key' }, controller.signal),
+      (error) => error instanceof Error && error.name === 'AbortError',
+    );
+    assert.equal(fetchCalls, 0);
+  });
+
+  test('rejects unsupported audio formats before calling the API', async () => {
     const file = new File(['audio'], 'meeting.webm', { type: 'audio/webm' });
 
     await assert.rejects(
-      () => transcribeWithGemini(
-        file,
-        '',
-        Language.AUTO,
-        false,
-        { apiKey: 'gemini-key' },
-        new AbortController().signal,
-      ),
-      /API key not valid/,
+      () =>
+        transcribeWithGemini(file, '', Language.AUTO, false, { apiKey: 'gemini-key' }, new AbortController().signal),
+      /支持 WAV、MP3、AIFF、AAC、OGG、FLAC/,
+    );
+  });
+
+  test('rejects inline requests that exceed the official size limit', async () => {
+    const largeFile = new File([new Uint8Array(16 * 1024 * 1024)], 'large.wav', { type: 'audio/wav' });
+
+    await assert.rejects(
+      () =>
+        transcribeWithGemini(
+          largeFile,
+          '',
+          Language.AUTO,
+          false,
+          { apiKey: 'gemini-key' },
+          new AbortController().signal,
+        ),
+      /内联请求上限/,
     );
   });
 });

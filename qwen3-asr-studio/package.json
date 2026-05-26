@@ -1,7 +1,0 @@
-{
-  "name": "qwen3-asr-studio-deploy-compat",
-  "private": true,
-  "scripts": {
-    "build": "npm --prefix ../asr-studio ci && npm --prefix ../asr-studio run build && rm -rf dist && cp -R ../asr-studio/dist dist"
-  }
-}

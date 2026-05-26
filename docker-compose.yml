@@ -1,0 +1,10 @@
+services:
+  asr-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: asr-studio:latest
+    container_name: asr-studio
+    restart: unless-stopped
+    ports:
+      - "8081:80"

@@ -1,84 +1,63 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
-import { AudioUploader, type AudioUploaderHandle } from './components/AudioUploader';
+import { AudioInputPanel, type AudioInputPanelHandle } from './components/AudioInputPanel';
 import { ResultDisplay } from './components/ResultDisplay';
-import { AsrProvider, CompressionLevel, Language } from './types';
-import type { AsrProviderConfig } from './types';
-import type { HistoryItem, Notification, Theme } from './types';
+import { AsrProvider } from './types';
+import type { HistoryItem, Notification } from './types';
 import { Toast } from './components/Toast';
-import { LoaderIcon } from './components/icons/LoaderIcon';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AudioPreview } from './components/AudioPreview';
 import { HistoryPanel } from './components/HistoryPanel';
-import { RetryIcon } from './components/icons/RetryIcon';
 import { PipView } from './components/PipView';
-import { StopIcon } from './components/icons/StopIcon';
-import { CopyIcon } from './components/icons/CopyIcon';
-import { CheckIcon } from './components/icons/CheckIcon';
+import { SessionParametersPanel } from './components/SessionParametersPanel';
+import { TranscriptionActions } from './components/TranscriptionActions';
+import { useAppSettings } from './hooks/useAppSettings';
 import { useAudioDevices } from './hooks/useAudioDevices';
 import { useDocumentPip } from './hooks/useDocumentPip';
 import { useHistoryItems } from './hooks/useHistoryItems';
-import { usePersistentState } from './hooks/usePersistentState';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { useTranscriptionFlow } from './hooks/useTranscriptionFlow';
-
-const parseLanguage = (storedValue: string | null) => {
-  return Object.values(Language).includes(storedValue as Language)
-    ? (storedValue as Language)
-    : Language.AUTO;
-};
-
-const parseCompressionLevel = (storedValue: string | null) => {
-  return Object.values(CompressionLevel).includes(storedValue as CompressionLevel)
-    ? (storedValue as CompressionLevel)
-    : CompressionLevel.ORIGINAL;
-};
-
-const parseAsrProvider = (storedValue: string | null) => {
-  return Object.values(AsrProvider).includes(storedValue as AsrProvider)
-    ? (storedValue as AsrProvider)
-    : AsrProvider.QWEN;
-};
-
-const parseTheme = (storedValue: string | null): Theme => {
-  return storedValue === 'dark' ? 'dark' : 'light';
-};
+import { languageDisplayNames } from './displayNames';
+import { clearCachedRecording, clearTranscriptionCache, getStorageEstimate } from './services/cacheService';
+import { getTranscriptSaveState } from './services/transcriptSaveState';
+import { isAsrProvider, isCompressionLevel, isLanguage } from './services/typeGuards';
+import { isSelectedAudioDeviceAvailable } from './services/audioDeviceUtils';
 
 export default function App() {
-  const [context, setContext] = usePersistentState('context', '');
-  const [language, setLanguage] = usePersistentState('language', Language.AUTO, { parse: parseLanguage });
-  const [enableItn, setEnableItn] = usePersistentState('enableItn', false, {
-    parse: storedValue => storedValue === 'true',
-    serialize: String,
-  });
+  const { asrConfig, resetSettings, setters, values } = useAppSettings();
+  const {
+    asrProvider,
+    autoCopy,
+    autoGainControl,
+    compressionLevel,
+    context,
+    echoCancellation,
+    enableItn,
+    language,
+    noiseSuppression,
+    selectedDeviceId,
+    theme,
+    trimSilence,
+    enableLongAudioChunking,
+  } = values;
+  const {
+    setAsrProvider,
+    setCompressionLevel,
+    setContext,
+    setEnableItn,
+    setEnableLongAudioChunking,
+    setLanguage,
+    setSelectedDeviceId,
+    setTrimSilence,
+  } = setters;
+
   const [notification, setNotification] = useState<Notification | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [autoCopy, setAutoCopy] = usePersistentState('autoCopy', true, {
-    parse: storedValue => storedValue !== 'false',
-    serialize: String,
-  });
-  const [theme, setTheme] = usePersistentState<Theme>('theme', 'light', { parse: parseTheme });
-  const [compressionLevel, setCompressionLevel] = usePersistentState('compressionLevel', CompressionLevel.ORIGINAL, {
-    parse: parseCompressionLevel,
-  });
-  const [selectedDeviceId, setSelectedDeviceId] = usePersistentState('selectedDeviceId', 'default');
-  const [asrProvider, setAsrProvider] = usePersistentState('asrProvider', AsrProvider.QWEN, {
-    parse: parseAsrProvider,
-  });
-  const [qwenApiKey, setQwenApiKey] = usePersistentState('qwenApiKey', '');
-  const [doubaoApiKey, setDoubaoApiKey] = usePersistentState('doubaoApiKey', '');
-  const [doubaoAccessKey, setDoubaoAccessKey] = usePersistentState('doubaoAccessKey', '');
-  const [geminiApiKey, setGeminiApiKey] = usePersistentState('geminiApiKey', '');
-  const asrConfig: AsrProviderConfig = useMemo(() => ({
-    provider: asrProvider,
-    qwenApiKey,
-    doubaoApiKey,
-    doubaoAccessKey,
-    geminiApiKey,
-  }), [asrProvider, doubaoAccessKey, doubaoApiKey, geminiApiKey, qwenApiKey]);
+  const [isPipBusy, setIsPipBusy] = useState(false);
+  const [storageEstimate, setStorageEstimate] = useState<{ usage: number; quota: number } | null>(null);
 
-  const audioUploaderRef = useRef<AudioUploaderHandle>(null);
+  const audioInputPanelRef = useRef<AudioInputPanelHandle>(null);
   const isSpaceDown = useRef(false);
   const audioDevices = useAudioDevices();
 
@@ -90,32 +69,59 @@ export default function App() {
     setNotification(null);
   }, []);
 
-  const handleError = useCallback((message: string) => {
-    notify(message, 'error');
-  }, [notify]);
+  const handleError = useCallback(
+    (message: string) => {
+      notify(message, 'error');
+    },
+    [notify],
+  );
 
   const { canInstall, installApp } = usePwaInstall(notify);
-  const { history, prependHistoryItem, removeHistoryItem, removeAllHistory } = useHistoryItems(notify);
-  const { isPipActive, pipContainer, togglePip } = useDocumentPip(notify);
+  const {
+    history,
+    prependHistoryItem,
+    importHistoryFile,
+    updateHistoryItem,
+    removeHistoryItem,
+    removeHistoryItems,
+    removeAllHistory,
+  } = useHistoryItems(notify);
+  const { isPipActive, isOpeningPip, pipContainer, togglePip } = useDocumentPip(notify);
+
+  const refreshStorageEstimate = useCallback(async () => {
+    setStorageEstimate(await getStorageEstimate());
+  }, []);
 
   const {
     audioFile,
     transcription,
+    segments,
     detectedLanguage,
     isLoading,
     loadingMessage,
     isRecording,
-    isRealtimeTranscribing,
+    isRecordingBusy,
+    queue,
+    isBatchProcessing,
     copied,
     elapsedTime,
     realtimeElapsedTime,
+    activeHistoryItemId,
+    isTranscriptionDirty,
     handleCancel,
     handleCopy,
+    handleBatchTranscribe,
     handleFileChange: changeAudioFile,
+    handleFilesChange,
     handleRecordingChange,
-    handleRealtimeTranscribe,
+    handleRecordingBusyChange,
     handleRetry,
+    removeQueueItem,
+    clearQueue,
     handleTranscribe,
+    handleKeyboardRecordingRelease,
+    handleTranscriptionChange,
+    handleSaveTranscriptionToHistory,
     handleTranscriptionResultFromPip,
     restoreHistoryItem,
   } = useTranscriptionFlow({
@@ -124,13 +130,19 @@ export default function App() {
     enableItn,
     autoCopy,
     compressionLevel,
+    trimSilence,
+    enableLongAudioChunking,
     asrConfig,
-    selectedDeviceId,
     notify,
     clearNotification,
     prependHistoryItem,
-    audioUploaderRef,
+    updateHistoryItem,
+    audioInputPanelRef,
   });
+  const isMainTranscriptionBusy = isLoading || isBatchProcessing;
+  const isTranscriptionBusy = isMainTranscriptionBusy || isPipBusy;
+  const isRecordingActive = isRecording || isRecordingBusy;
+  const isWorkspaceBusy = isTranscriptionBusy || isRecordingActive;
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -140,6 +152,20 @@ export default function App() {
       root.classList.remove('dark');
     }
   }, [theme]);
+
+  useEffect(() => {
+    void refreshStorageEstimate();
+  }, [history.length, refreshStorageEstimate]);
+
+  useEffect(() => {
+    if (
+      selectedDeviceId !== 'default' &&
+      audioDevices.length > 0 &&
+      !isSelectedAudioDeviceAvailable(selectedDeviceId, audioDevices)
+    ) {
+      setSelectedDeviceId('default');
+    }
+  }, [audioDevices, selectedDeviceId, setSelectedDeviceId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -154,9 +180,9 @@ export default function App() {
 
       event.preventDefault();
 
-      if (!isRecording && !isLoading) {
+      if (!isRecordingActive && !isTranscriptionBusy) {
         isSpaceDown.current = true;
-        audioUploaderRef.current?.startRecording();
+        audioInputPanelRef.current?.startRecording();
       }
     };
 
@@ -168,9 +194,7 @@ export default function App() {
       event.preventDefault();
       isSpaceDown.current = false;
 
-      if (isRecording) {
-        void handleTranscribe();
-      }
+      handleKeyboardRecordingRelease();
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -180,215 +204,300 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handleTranscribe, isLoading, isRecording, isSettingsOpen]);
+  }, [handleKeyboardRecordingRelease, isRecordingActive, isSettingsOpen, isTranscriptionBusy]);
 
   const handleClearHistory = useCallback(async () => {
     const cleared = await removeAllHistory();
     if (cleared) {
+      void refreshStorageEstimate();
       setIsSettingsOpen(false);
     }
-  }, [removeAllHistory]);
+    return cleared;
+  }, [refreshStorageEstimate, removeAllHistory]);
 
-  const handleRestoreHistory = useCallback((item: HistoryItem) => {
-    if (!restoreHistoryItem(item)) {
+  const handleClearTranscriptionCache = useCallback(async () => {
+    try {
+      await clearTranscriptionCache();
+      await refreshStorageEstimate();
+      notify('识别缓存已清除', 'success');
+      return true;
+    } catch (error) {
+      console.error('Failed to clear transcription cache:', error);
+      notify('清除识别缓存失败。', 'error');
+      return false;
+    }
+  }, [notify, refreshStorageEstimate]);
+
+  const handleClearRecordingCache = useCallback(async () => {
+    try {
+      await clearCachedRecording();
+      await refreshStorageEstimate();
+      notify('最近录音缓存已清除', 'success');
+      return true;
+    } catch (error) {
+      console.error('Failed to clear recording cache:', error);
+      notify('清除最近录音失败。', 'error');
+      return false;
+    }
+  }, [notify, refreshStorageEstimate]);
+
+  const handleImportHistory = useCallback(
+    async (file: File) => {
+      const importedCount = await importHistoryFile(file);
+      if (importedCount > 0) {
+        void refreshStorageEstimate();
+      }
+      return importedCount;
+    },
+    [importHistoryFile, refreshStorageEstimate],
+  );
+
+  const handleRestoreHistory = useCallback(
+    (item: HistoryItem) => {
+      if (isWorkspaceBusy) {
+        notify('录音或识别进行中，暂不能恢复历史记录。', 'error');
+        return;
+      }
+
+      if (!restoreHistoryItem(item)) {
+        return;
+      }
+
+      setContext(item.context);
+      if (isAsrProvider(item.provider)) {
+        setAsrProvider(item.provider);
+      }
+      if (isLanguage(item.language)) {
+        setLanguage(item.language);
+      }
+      if (typeof item.enableItn === 'boolean') {
+        setEnableItn(item.enableItn);
+      }
+      if (isCompressionLevel(item.compressionLevel)) {
+        setCompressionLevel(item.compressionLevel);
+      }
+      if (typeof item.trimSilence === 'boolean') {
+        setTrimSilence(item.trimSilence);
+      }
+      if (typeof item.enableLongAudioChunking === 'boolean') {
+        setEnableLongAudioChunking(item.enableLongAudioChunking);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [
+      isWorkspaceBusy,
+      notify,
+      restoreHistoryItem,
+      setAsrProvider,
+      setCompressionLevel,
+      setContext,
+      setEnableItn,
+      setEnableLongAudioChunking,
+      setLanguage,
+      setTrimSilence,
+    ],
+  );
+
+  const handleRestoreDefaults = useCallback(() => {
+    resetSettings();
+    setIsSettingsOpen(false);
+    notify('已恢复默认设置', 'success');
+  }, [notify, resetSettings]);
+
+  const handleTogglePip = useCallback(() => {
+    if (isOpeningPip) {
       return;
     }
 
-    setContext(item.context);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [restoreHistoryItem, setContext]);
+    if (isPipActive) {
+      togglePip();
+      return;
+    }
 
-  const handleRestoreDefaults = useCallback(() => {
-    setContext('');
-    setLanguage(Language.AUTO);
-    setEnableItn(false);
-    setAutoCopy(true);
-    setTheme('light');
-    setCompressionLevel(CompressionLevel.ORIGINAL);
-    setSelectedDeviceId('default');
-    setAsrProvider(AsrProvider.QWEN);
-    setQwenApiKey('');
-    setDoubaoApiKey('');
-    setDoubaoAccessKey('');
-    setGeminiApiKey('');
-    setIsSettingsOpen(false);
-    notify('已恢复默认设置', 'success');
-  }, [
-    notify,
-    setAsrProvider,
-    setAutoCopy,
-    setCompressionLevel,
-    setContext,
-    setDoubaoAccessKey,
-    setDoubaoApiKey,
-    setEnableItn,
-    setGeminiApiKey,
-    setLanguage,
-    setQwenApiKey,
-    setSelectedDeviceId,
-    setTheme,
-  ]);
+    if (isMainTranscriptionBusy || isRecordingActive) {
+      notify('录音或识别进行中，暂不能打开输入法模式。', 'error');
+      return;
+    }
+
+    togglePip();
+  }, [isMainTranscriptionBusy, isOpeningPip, isPipActive, isRecordingActive, notify, togglePip]);
+
+  const hasResult = Boolean(transcription || detectedLanguage);
+  const hasActiveHistoryItem = activeHistoryItemId !== null && history.some((item) => item.id === activeHistoryItemId);
+  const transcriptSaveState = getTranscriptSaveState({
+    hasTranscription: Boolean(transcription),
+    hasActiveHistoryItem,
+    isDirty: isTranscriptionDirty,
+  });
+  const handleSaveCurrentTranscription = useCallback(
+    () => handleSaveTranscriptionToHistory(hasActiveHistoryItem),
+    [handleSaveTranscriptionToHistory, hasActiveHistoryItem],
+  );
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-base-100 font-sans text-content-100">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-3 py-3 sm:px-5 sm:py-4 lg:px-6">
-        <Header onSettingsClick={() => setIsSettingsOpen(true)} onPipClick={togglePip} />
-        <main className="mt-3 flex min-h-0 flex-1 flex-col gap-4 sm:mt-4">
-          <section className="grid min-w-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)] lg:items-stretch">
-            <div className="min-w-0 space-y-4">
-              <AudioUploader
-                ref={audioUploaderRef}
-                onFileChange={changeAudioFile}
-                onRecordingChange={handleRecordingChange}
-                disabled={isLoading}
-                onRecordingError={handleError}
-                theme={theme}
-                selectedDeviceId={selectedDeviceId}
-              />
-              <AudioPreview
-                file={audioFile}
-                onFileChange={changeAudioFile}
-                disabled={isLoading}
-              />
-            </div>
+    <div className="workspace-shell h-full min-w-0 overflow-hidden font-sans">
+      <div className="mx-auto flex h-full w-full min-w-0 max-w-[1600px] flex-col px-3 py-3 sm:px-5 lg:px-6">
+        <Header
+          onSettingsClick={() => setIsSettingsOpen(true)}
+          onPipClick={handleTogglePip}
+          asrProvider={asrProvider}
+          onAsrProviderChange={setAsrProvider}
+          disabled={isWorkspaceBusy}
+          pipDisabled={isOpeningPip || (!isPipActive && (isMainTranscriptionBusy || isRecordingActive))}
+        />
+        <main className="custom-scrollbar grid min-h-0 w-full min-w-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden py-3 lg:grid-cols-[22.5rem_minmax(0,1fr)] xl:gap-4">
+          <aside className="w-full min-w-0 max-w-full space-y-3 lg:sticky lg:top-0 lg:self-start xl:space-y-4">
+            <AudioInputPanel
+              ref={audioInputPanelRef}
+              onFileChange={changeAudioFile}
+              onFilesChange={handleFilesChange}
+              onRecordingChange={handleRecordingChange}
+              onRecordingBusyChange={handleRecordingBusyChange}
+              disabled={isTranscriptionBusy}
+              isRecording={isRecordingActive}
+              onRecordingError={handleError}
+              theme={theme}
+              selectedDeviceId={selectedDeviceId}
+              echoCancellation={echoCancellation}
+              noiseSuppression={noiseSuppression}
+              autoGainControl={autoGainControl}
+              allowRemoteUrl={asrProvider === AsrProvider.DOUBAO}
+            />
+            <AudioPreview file={audioFile} onFileChange={changeAudioFile} disabled={isWorkspaceBusy} />
+            <SessionParametersPanel
+              context={context}
+              setContext={setContext}
+              language={language}
+              setLanguage={setLanguage}
+              enableItn={enableItn}
+              setEnableItn={setEnableItn}
+              compressionLevel={compressionLevel}
+              setCompressionLevel={setCompressionLevel}
+              disabled={isWorkspaceBusy}
+            />
+          </aside>
 
-            <div className="flex min-w-0 flex-col lg:min-h-[31rem]">
-              <ResultDisplay
-                transcription={transcription}
-                detectedLanguage={detectedLanguage}
-                isLoading={isLoading}
-                isRealtimeTranscribing={isRealtimeTranscribing}
-                loadingStatus={loadingMessage}
-                elapsedTime={elapsedTime}
-              />
-              <div className="pt-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-                  <button
-                    onClick={handleTranscribe}
-                    disabled={(!audioFile && !isRecording) || isLoading}
-                    className="flex min-w-0 flex-1 items-center justify-center rounded-xl bg-brand-primary px-4 py-3 text-base font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-secondary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:ring-offset-2 focus:ring-offset-base-100 disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200 disabled:shadow-none sm:px-6"
-                  >
-                    {isLoading ? (
-                      <>
-                        <LoaderIcon color="white" className="mr-2 h-5 w-5 sm:mr-3 sm:h-6 sm:w-6" />
-                        <span className="truncate">正在识别...</span>
-                        <span className="ml-2 w-[60px] flex-shrink-0 text-left font-mono tabular-nums">
-                          {realtimeElapsedTime.toFixed(1)}s
-                        </span>
-                      </>
-                    ) : isRecording ? (
-                      '停止并识别'
-                    ) : (
-                      '识别'
-                    )}
-                  </button>
-                  {asrProvider === AsrProvider.DOUBAO && (
-                    <button
-                      onClick={handleRealtimeTranscribe}
-                      disabled={(isLoading && !isRealtimeTranscribing) || isRecording}
-                      className={`flex min-w-0 flex-1 items-center justify-center rounded-xl px-4 py-3 text-base font-semibold text-white shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-100 disabled:cursor-not-allowed disabled:bg-base-300 disabled:text-content-200 disabled:shadow-none sm:px-6 ${
-                        isRealtimeTranscribing
-                          ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500/40'
-                          : 'bg-sky-600 hover:bg-sky-700 focus:ring-sky-500/40'
-                      }`}
-                    >
-                      <span className="truncate">{isRealtimeTranscribing ? '停止实时识别' : '实时识别'}</span>
-                    </button>
-                  )}
-                  {isLoading ? (
-                    <button
-                      onClick={handleCancel}
-                      title="取消"
-                      aria-label="取消识别"
-                      className="flex h-12 items-center justify-center rounded-xl bg-red-600 px-4 text-white shadow-sm transition-colors duration-200 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:ring-offset-2 focus:ring-offset-base-100 sm:h-auto sm:flex-shrink-0 sm:px-3"
-                    >
-                      <StopIcon className="h-6 w-6" />
-                    </button>
-                  ) : (
-                    transcription && audioFile && (
-                      <div className="flex items-stretch gap-3 sm:flex-shrink-0">
-                        <button
-                          onClick={handleCopy}
-                          title={copied ? '已复制!' : '复制'}
-                          aria-label="复制识别结果"
-                          className="flex-shrink-0 rounded-xl border border-base-300 bg-base-200 p-3 text-content-100 shadow-sm transition-colors duration-200 hover:bg-base-300/60 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:ring-offset-2 focus:ring-offset-base-100"
-                        >
-                          {copied ? <CheckIcon className="h-6 w-6 text-brand-primary" /> : <CopyIcon className="h-6 w-6" />}
-                        </button>
-                        <button
-                          onClick={handleRetry}
-                          title="重试"
-                          aria-label="重试识别"
-                          className="flex-shrink-0 rounded-xl border border-base-300 bg-base-200 p-3 text-content-100 shadow-sm transition-colors duration-200 hover:bg-base-300/60 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:ring-offset-2 focus:ring-offset-base-100"
-                        >
-                          <RetryIcon className="h-6 w-6" />
-                        </button>
-                      </div>
-                    )
-                  )}
-                </div>
+          <section className="flex w-full min-w-0 max-w-full flex-col gap-3 lg:min-h-[calc(100dvh-6rem)] xl:gap-4">
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="surface-panel min-w-0 px-3 py-2">
+                <p className="eyebrow">Audio</p>
+                <p className="mt-1 truncate text-sm font-semibold text-content-100">
+                  {isRecording ? '录音中' : isRecordingBusy ? '录音准备中' : audioFile ? audioFile.name : '空闲'}
+                </p>
+              </div>
+              <div className="surface-panel min-w-0 px-3 py-2">
+                <p className="eyebrow">State</p>
+                <p className="mt-1 text-sm font-semibold text-content-100">
+                  {isPipBusy
+                    ? '输入法处理中'
+                    : isBatchProcessing
+                      ? '批处理中'
+                      : isLoading
+                        ? '识别中'
+                        : isRecording
+                          ? '录音中'
+                          : isRecordingBusy
+                            ? '录音处理中'
+                            : hasResult
+                              ? '已生成'
+                              : '待处理'}
+                </p>
+              </div>
+              <div className="surface-panel min-w-0 px-3 py-2">
+                <p className="eyebrow">Language</p>
+                <p className="mt-1 truncate text-sm font-semibold text-content-100">
+                  {detectedLanguage || languageDisplayNames[language]}
+                </p>
+              </div>
+              <div className="surface-panel min-w-0 px-3 py-2">
+                <p className="eyebrow">History</p>
+                <p className="mt-1 font-mono text-sm font-semibold text-content-100">{history.length}</p>
               </div>
             </div>
-          </section>
 
-          <section className="min-w-0">
+            <ResultDisplay
+              transcription={transcription}
+              detectedLanguage={detectedLanguage}
+              isLoading={isLoading}
+              loadingStatus={loadingMessage}
+              elapsedTime={elapsedTime}
+              segments={segments}
+              sourceFileName={audioFile?.name}
+              provider={asrProvider}
+              saveState={transcriptSaveState}
+              disabled={isWorkspaceBusy}
+              onTranscriptionChange={handleTranscriptionChange}
+              onSaveTranscription={handleSaveCurrentTranscription}
+            />
+
+            <TranscriptionActions
+              audioFile={audioFile}
+              copied={copied}
+              isLoading={isLoading}
+              isRecording={isRecording}
+              isRecordingBusy={isRecordingBusy}
+              queue={queue}
+              isBatchProcessing={isBatchProcessing}
+              disabled={isPipBusy}
+              realtimeElapsedTime={realtimeElapsedTime}
+              transcription={transcription}
+              onCancel={handleCancel}
+              onCopy={handleCopy}
+              onStartBatch={handleBatchTranscribe}
+              onClearQueue={clearQueue}
+              onRemoveQueueItem={removeQueueItem}
+              onRetry={handleRetry}
+              onTranscribe={handleTranscribe}
+            />
+
             <HistoryPanel
               items={history}
               onDelete={removeHistoryItem}
+              onDeleteMany={removeHistoryItems}
               onRestore={handleRestoreHistory}
               onError={handleError}
-              disabled={isLoading}
+              disabled={isWorkspaceBusy}
             />
           </section>
         </main>
       </div>
-      {notification && <Toast message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
+      {notification && (
+        <Toast message={notification.message} type={notification.type} onClose={() => setNotification(null)} />
+      )}
       <SettingsPanel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        theme={theme}
-        setTheme={setTheme}
-        autoCopy={autoCopy}
-        setAutoCopy={setAutoCopy}
-        context={context}
-        setContext={setContext}
-        language={language}
-        setLanguage={setLanguage}
-        enableItn={enableItn}
-        setEnableItn={setEnableItn}
-        compressionLevel={compressionLevel}
-        setCompressionLevel={setCompressionLevel}
+        values={values}
+        setters={setters}
         audioDevices={audioDevices}
-        selectedDeviceId={selectedDeviceId}
-        setSelectedDeviceId={setSelectedDeviceId}
-        asrProvider={asrProvider}
-        setAsrProvider={setAsrProvider}
-        qwenApiKey={qwenApiKey}
-        setQwenApiKey={setQwenApiKey}
-        doubaoApiKey={doubaoApiKey}
-        setDoubaoApiKey={setDoubaoApiKey}
-        doubaoAccessKey={doubaoAccessKey}
-        setDoubaoAccessKey={setDoubaoAccessKey}
-        geminiApiKey={geminiApiKey}
-        setGeminiApiKey={setGeminiApiKey}
         onClearHistory={handleClearHistory}
+        onClearTranscriptionCache={handleClearTranscriptionCache}
+        onClearRecordingCache={handleClearRecordingCache}
+        onImportHistory={handleImportHistory}
         onRestoreDefaults={handleRestoreDefaults}
+        storageEstimate={storageEstimate}
         canInstall={canInstall}
         onInstallApp={installApp}
-        disabled={isLoading}
+        disabled={isWorkspaceBusy}
       />
-      {isPipActive && pipContainer && createPortal(
-        <PipView
-          onTranscriptionResult={handleTranscriptionResultFromPip}
-          theme={theme}
-          context={context}
-          language={language}
-          enableItn={enableItn}
-          selectedDeviceId={selectedDeviceId}
-          asrConfig={asrConfig}
-        />,
-        pipContainer
-      )}
+      {isPipActive &&
+        pipContainer &&
+        createPortal(
+          <PipView
+            onTranscriptionResult={handleTranscriptionResultFromPip}
+            context={context}
+            language={language}
+            enableItn={enableItn}
+            selectedDeviceId={selectedDeviceId}
+            echoCancellation={echoCancellation}
+            noiseSuppression={noiseSuppression}
+            autoGainControl={autoGainControl}
+            asrConfig={asrConfig}
+            disabled={isMainTranscriptionBusy || isRecordingActive}
+            onBusyChange={setIsPipBusy}
+          />,
+          pipContainer,
+        )}
     </div>
   );
 }

@@ -1,7 +1,5 @@
 {
   "name": "ASR Studio",
-  "description": "一个用于阿里云Qwen模型的网页界面。可以上传或录制音频，提供可选的上下文，并获得快速、准确的转录结果。",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "description": "一个用于 Qwen、豆包、Gemini 和 NVIDIA NIM 的多厂商语音识别工作台。",
+  "requestFramePermissions": ["microphone"]
 }

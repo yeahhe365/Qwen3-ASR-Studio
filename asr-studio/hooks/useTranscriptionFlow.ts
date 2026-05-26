@@ -1,5 +1,5 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
-import type { AudioUploaderHandle } from '../components/AudioUploader';
+import type { AudioInputPanelHandle } from '../components/AudioInputPanel';
 import {
   clearCachedRecording,
   getCachedRecording,
@@ -7,28 +7,42 @@ import {
   getFileHash,
   setCachedTranscription,
 } from '../services/cacheService';
-import { compressAudio } from '../services/audioService';
-import { transcribeAudio } from '../services/asrService';
 import {
-  startDoubaoRealtimeTranscription,
-  type DoubaoRealtimeSession,
-} from '../services/providers/doubaoRealtimeProvider';
-import type {
-  AsrProviderConfig,
-  CompressionLevel,
-  HistoryItem,
-  Language,
-  Notification,
-} from '../types';
+  compressAudio,
+  getAudioProcessingFallbackReason,
+  getEffectiveCompressionLevel,
+} from '../services/audioService';
+import { AsrProvider, CompressionLevel } from '../types';
+import type { AsrProviderConfig, HistoryItem, Language, Notification, TranscriptionResult } from '../types';
+import { getProviderReadinessError } from '../services/providerRegistry';
+import { createRemoteAudioFile, getAudioSourceUrl } from '../services/remoteAudioFile';
+import { createTranscriptionCacheKey, createTranscriptionCacheSource } from '../services/transcriptionCacheKey';
+import { createAbortError, isAbortError, transcribePreparedAudio } from '../services/transcriptionProcessing';
+import { normalizeSegments } from '../services/transcriptionSegments';
 import { useElapsedTimer } from './useElapsedTimer';
+import { useTranscriptHistoryDraft } from './useTranscriptHistoryDraft';
+import { useTranscriptionQueue } from './useTranscriptionQueue';
 
 type Notify = (message: string, type: Notification['type']) => void;
-type PrependHistoryItem = (item: HistoryItem) => Promise<void>;
-
-type TranscriptionResult = {
-  transcription: string;
-  detectedLanguage: string;
-};
+type PrependHistoryItem = (item: HistoryItem) => Promise<boolean>;
+type UpdateHistoryItem = (
+  id: number,
+  patch: Partial<
+    Pick<
+      HistoryItem,
+      | 'transcription'
+      | 'detectedLanguage'
+      | 'context'
+      | 'segments'
+      | 'provider'
+      | 'language'
+      | 'enableItn'
+      | 'compressionLevel'
+      | 'trimSilence'
+      | 'enableLongAudioChunking'
+    >
+  >,
+) => Promise<boolean>;
 
 type PipTranscriptionResult = TranscriptionResult & {
   audioFile: File;
@@ -40,12 +54,14 @@ type UseTranscriptionFlowOptions = {
   enableItn: boolean;
   autoCopy: boolean;
   compressionLevel: CompressionLevel;
+  trimSilence: boolean;
+  enableLongAudioChunking: boolean;
   asrConfig: AsrProviderConfig;
-  selectedDeviceId: string;
   notify: Notify;
   clearNotification: () => void;
   prependHistoryItem: PrependHistoryItem;
-  audioUploaderRef: RefObject<AudioUploaderHandle>;
+  updateHistoryItem: UpdateHistoryItem;
+  audioInputPanelRef: RefObject<AudioInputPanelHandle>;
 };
 
 export function useTranscriptionFlow({
@@ -54,43 +70,94 @@ export function useTranscriptionFlow({
   enableItn,
   autoCopy,
   compressionLevel,
+  trimSilence,
+  enableLongAudioChunking,
   asrConfig,
-  selectedDeviceId,
   notify,
   clearNotification,
   prependHistoryItem,
-  audioUploaderRef,
+  updateHistoryItem,
+  audioInputPanelRef,
 }: UseTranscriptionFlowOptions) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [transcription, setTranscription] = useState('');
   const [detectedLanguage, setDetectedLanguage] = useState('');
+  const [segments, setSegments] = useState<TranscriptionResult['segments']>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingBusy, setIsRecordingBusy] = useState(false);
   const [transcribeAfterRecording, setTranscribeAfterRecording] = useState(false);
-  const [isRealtimeTranscribing, setIsRealtimeTranscribing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [elapsedTime, setElapsedTime] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const realtimeSessionRef = useRef<DoubaoRealtimeSession | null>(null);
-  const realtimeStartTimeRef = useRef<number | null>(null);
+  const isLoadingRef = useRef(false);
   const realtimeElapsedTime = useElapsedTimer(isLoading);
 
-  const createHistoryItem = useCallback((file: File, result: TranscriptionResult): HistoryItem => ({
-    id: Date.now(),
-    fileName: file.name,
-    transcription: result.transcription,
-    detectedLanguage: result.detectedLanguage,
+  const abortCurrentRequest = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  const setLoadingState = useCallback((nextIsLoading: boolean) => {
+    isLoadingRef.current = nextIsLoading;
+    setIsLoading(nextIsLoading);
+  }, []);
+
+  const {
+    queue,
+    isBatchProcessing,
+    isBatchProcessingRef,
+    setQueueState,
+    createQueue,
+    updateQueueState,
+    setBatchProcessingState,
+    removeQueueItem,
+    updateQueueItem,
+    clearQueue,
+    getQueuedTranscriptionItems,
+    getCurrentQueueItem,
+    getQueueSnapshot,
+    requestBatchStop,
+    resetBatchStop,
+    isBatchStopRequested,
+  } = useTranscriptionQueue({ abortCurrentRequest });
+
+  const {
+    activeHistoryItemId,
+    createHistoryItem,
+    markHistoryItemSaved,
+    resetHistoryDraft,
+    saveCurrentTranscript,
+    restoreHistoryDraft,
+    getIsTranscriptionDirty,
+  } = useTranscriptHistoryDraft({
     context,
-    timestamp: Date.now(),
-    audioFile: file,
-  }), [context]);
+    provider: asrConfig.provider,
+    language,
+    enableItn,
+    compressionLevel,
+    trimSilence,
+    enableLongAudioChunking,
+    notify,
+    prependHistoryItem,
+    updateHistoryItem,
+  });
+
+  const resetTranscriptionResult = useCallback(() => {
+    setElapsedTime(null);
+    setTranscription('');
+    setDetectedLanguage('');
+    setSegments([]);
+    resetHistoryDraft();
+  }, [resetHistoryDraft]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadCachedRecording = async () => {
       try {
         const cachedRecording = await getCachedRecording();
-        if (cachedRecording) {
+        if (isMounted && cachedRecording) {
           setAudioFile(cachedRecording);
         }
       } catch (error) {
@@ -99,6 +166,9 @@ export function useTranscriptionFlow({
     };
 
     loadCachedRecording();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -110,130 +180,263 @@ export function useTranscriptionFlow({
     return () => window.clearTimeout(timer);
   }, [copied]);
 
-  const handleFileChange = useCallback((file: File | null) => {
-    clearNotification();
-    setAudioFile(file);
-    setElapsedTime(null);
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
+  }, []);
 
-    setTranscription('');
-    setDetectedLanguage('');
+  const handleFileChange = useCallback(
+    (file: File | null) => {
+      clearNotification();
+      setQueueState([]);
+      setAudioFile(file);
+      resetTranscriptionResult();
 
-    if (file === null) {
-      clearCachedRecording().catch(console.error);
-      audioUploaderRef.current?.clearInput();
-    }
-  }, [audioUploaderRef, clearNotification]);
+      if (file === null) {
+        clearCachedRecording().catch(console.error);
+        audioInputPanelRef.current?.clearInput();
+      }
+    },
+    [audioInputPanelRef, clearNotification, resetTranscriptionResult, setQueueState],
+  );
 
-  const transcribeNow = useCallback(async (file: File, bypassCache = false) => {
-    abortControllerRef.current?.abort();
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+  const handleFilesChange = useCallback(
+    (files: File[]) => {
+      clearNotification();
+      const validFiles = files.filter(Boolean);
+      if (validFiles.length === 0) {
+        return;
+      }
 
-    clearNotification();
-    setIsLoading(true);
-    setElapsedTime(null);
-    const localStartTime = Date.now();
+      if (validFiles.length === 1) {
+        handleFileChange(validFiles[0]);
+        return;
+      }
 
-    setTranscription('');
-    setDetectedLanguage('');
+      createQueue(validFiles);
+      setAudioFile(validFiles[0]);
+      resetTranscriptionResult();
+      notify(`已加入 ${validFiles.length} 个音频到批处理队列`, 'success');
+    },
+    [clearNotification, createQueue, handleFileChange, notify, resetTranscriptionResult],
+  );
 
-    try {
-      const hash = await getFileHash(file);
-      const cacheKey = [
-        hash,
-        asrConfig.provider,
-        language,
-        enableItn,
-        context.trim(),
-      ].join(':');
-      const cachedResult = bypassCache ? null : await getCachedTranscription(cacheKey);
+  const transcribeNow = useCallback(
+    async (file: File, bypassCache = false, onProgress?: (message: string) => void) => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      clearNotification();
+      const readinessError = getProviderReadinessError(asrConfig, file);
+      if (readinessError) {
+        notify(readinessError, 'error');
+        return false;
+      }
 
-      let finalResult: TranscriptionResult;
-
-      if (cachedResult) {
-        finalResult = {
-          transcription: cachedResult.transcription,
-          detectedLanguage: cachedResult.detectedLanguage,
-        };
-
-        if (autoCopy && cachedResult.transcription) {
-          try {
-            await navigator.clipboard.writeText(cachedResult.transcription);
-            notify('识别结果已从缓存加载并复制', 'success');
-          } catch (copyError) {
-            console.error('Failed to auto-copy cached result:', copyError);
-            notify('从缓存加载成功，但自动复制失败', 'error');
-          }
-        } else {
-          notify('识别结果已从缓存加载', 'success');
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      const isCurrentRequest = () => abortControllerRef.current === controller && !controller.signal.aborted;
+      const guardCurrentRequest = () => {
+        if (!isCurrentRequest()) {
+          throw createAbortError();
         }
-      } else {
-        setLoadingMessage('正在压缩音频（如果需要）...');
-        const fileToTranscribe = await compressAudio(file, compressionLevel);
-        finalResult = await transcribeAudio(
-          fileToTranscribe,
-          context,
+      };
+      const setCurrentLoadingMessage = (message: string) => {
+        if (!isCurrentRequest()) {
+          return;
+        }
+        setLoadingMessage(message);
+        onProgress?.(message);
+      };
+      setLoadingState(true);
+      const localStartTime = Date.now();
+      resetTranscriptionResult();
+
+      try {
+        const audioSourceUrl = getAudioSourceUrl(file);
+        const fileHash = audioSourceUrl ? '' : await getFileHash(file);
+        guardCurrentRequest();
+        const cacheKey = createTranscriptionCacheKey({
+          source: createTranscriptionCacheSource(fileHash, audioSourceUrl),
+          config: asrConfig,
           language,
           enableItn,
-          asrConfig,
-          setLoadingMessage,
-          controller.signal
-        );
+          compressionLevel,
+          trimSilence,
+          enableLongAudioChunking,
+          context,
+        });
+        const cachedResult = bypassCache ? null : await getCachedTranscription(cacheKey);
+        guardCurrentRequest();
+
+        let finalResult: TranscriptionResult;
+        let cacheWriteFailed = false;
+
+        if (cachedResult) {
+          finalResult = {
+            transcription: cachedResult.transcription,
+            detectedLanguage: cachedResult.detectedLanguage,
+            segments: normalizeSegments(cachedResult.transcription, cachedResult.segments),
+            provider: cachedResult.provider || asrConfig.provider,
+            createdAt: cachedResult.createdAt,
+          };
+
+          if (autoCopy && cachedResult.transcription) {
+            try {
+              await navigator.clipboard.writeText(cachedResult.transcription);
+              if (isCurrentRequest()) {
+                notify('识别结果已从缓存加载并复制', 'success');
+              }
+            } catch (copyError) {
+              console.error('Failed to auto-copy cached result:', copyError);
+              if (isCurrentRequest()) {
+                notify('从缓存加载成功，但自动复制失败', 'error');
+              }
+            }
+          } else {
+            notify('识别结果已从缓存加载', 'success');
+          }
+          guardCurrentRequest();
+        } else {
+          let fileToTranscribe = file;
+          if (audioSourceUrl) {
+            const loadingMessage = '正在提交远程音频 URL...';
+            setCurrentLoadingMessage(loadingMessage);
+          } else {
+            const effectiveCompressionLevel = getEffectiveCompressionLevel(asrConfig.provider, file, compressionLevel);
+            const isAutoConverted =
+              compressionLevel === CompressionLevel.ORIGINAL && effectiveCompressionLevel !== CompressionLevel.ORIGINAL;
+            const loadingMessage =
+              asrConfig.provider === AsrProvider.NVIDIA_NIM
+                ? '正在转换为 NIM 兼容音频...'
+                : isAutoConverted
+                  ? '正在转换为 Gemini 兼容音频...'
+                  : '正在压缩音频（如果需要）...';
+
+            setCurrentLoadingMessage(loadingMessage);
+            fileToTranscribe = await compressAudio(file, effectiveCompressionLevel);
+            guardCurrentRequest();
+            const compressionFallbackReason = getAudioProcessingFallbackReason(fileToTranscribe);
+            if (compressionFallbackReason) {
+              setCurrentLoadingMessage(compressionFallbackReason);
+            }
+          }
+
+          const setProgress = (message: string) => {
+            setCurrentLoadingMessage(message);
+          };
+          const providerResult = await transcribePreparedAudio({
+            file: fileToTranscribe,
+            audioSourceUrl,
+            controller,
+            context,
+            language,
+            enableItn,
+            trimSilence,
+            enableLongAudioChunking,
+            asrConfig,
+            setProgress,
+          });
+          guardCurrentRequest();
+          finalResult = {
+            ...providerResult,
+            segments: normalizeSegments(providerResult.transcription, providerResult.segments),
+            provider: asrConfig.provider,
+            createdAt: Date.now(),
+          };
+
+          if (finalResult.transcription) {
+            try {
+              await setCachedTranscription(cacheKey, finalResult);
+            } catch (cacheError) {
+              console.error('Failed to cache transcription result:', cacheError);
+              cacheWriteFailed = true;
+            }
+          }
+          guardCurrentRequest();
+
+          if (autoCopy && finalResult.transcription) {
+            try {
+              await navigator.clipboard.writeText(finalResult.transcription);
+              if (isCurrentRequest()) {
+                notify(
+                  cacheWriteFailed ? '识别成功并已复制，但写入缓存失败。' : '识别结果已复制到剪贴板',
+                  cacheWriteFailed ? 'error' : 'success',
+                );
+              }
+            } catch (copyError) {
+              console.error('Failed to auto-copy new result:', copyError);
+              if (isCurrentRequest()) {
+                notify(cacheWriteFailed ? '识别成功，但自动复制和缓存写入失败。' : '识别成功，但自动复制失败', 'error');
+              }
+            }
+          } else if (cacheWriteFailed && isCurrentRequest()) {
+            notify('识别成功，但写入缓存失败。', 'error');
+          }
+          guardCurrentRequest();
+        }
+
+        setTranscription(finalResult.transcription);
+        setDetectedLanguage(finalResult.detectedLanguage);
+        setSegments(finalResult.segments || []);
 
         if (finalResult.transcription) {
-          await setCachedTranscription(cacheKey, finalResult);
+          const historyItem = createHistoryItem(file, finalResult);
+          const savedToHistory = await prependHistoryItem(historyItem);
+          guardCurrentRequest();
+          markHistoryItemSaved(historyItem, savedToHistory);
         }
-
-        if (autoCopy && finalResult.transcription) {
-          try {
-            await navigator.clipboard.writeText(finalResult.transcription);
-            notify('识别结果已复制到剪贴板', 'success');
-          } catch (copyError) {
-            console.error('Failed to auto-copy new result:', copyError);
-            notify('识别成功，但自动复制失败', 'error');
+        return true;
+      } catch (error) {
+        if (isAbortError(error)) {
+          if (abortControllerRef.current === controller) {
+            notify('识别已取消', 'success');
+          }
+        } else {
+          console.error('Transcription error:', error);
+          const errorMessage = error instanceof Error ? error.message : '转录过程中发生未知错误。';
+          if (isCurrentRequest()) {
+            notify(errorMessage, 'error');
           }
         }
+        return false;
+      } finally {
+        if (abortControllerRef.current === controller) {
+          setLoadingState(false);
+          setLoadingMessage('');
+          setElapsedTime((Date.now() - localStartTime) / 1000);
+          abortControllerRef.current = null;
+        }
       }
-
-      setTranscription(finalResult.transcription);
-      setDetectedLanguage(finalResult.detectedLanguage);
-
-      if (finalResult.transcription) {
-        await prependHistoryItem(createHistoryItem(file, finalResult));
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        notify('识别已取消', 'success');
-      } else {
-        console.error('Transcription error:', error);
-        const errorMessage = error instanceof Error ? error.message : '转录过程中发生未知错误。';
-        notify(errorMessage, 'error');
-      }
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
-      setElapsedTime((Date.now() - localStartTime) / 1000);
-      if (abortControllerRef.current === controller) {
-        abortControllerRef.current = null;
-      }
-    }
-  }, [
-    asrConfig,
-    autoCopy,
-    compressionLevel,
-    context,
-    createHistoryItem,
-    clearNotification,
-    enableItn,
-    language,
-    notify,
-    prependHistoryItem,
-  ]);
+    },
+    [
+      asrConfig,
+      autoCopy,
+      compressionLevel,
+      context,
+      createHistoryItem,
+      clearNotification,
+      enableItn,
+      enableLongAudioChunking,
+      language,
+      notify,
+      prependHistoryItem,
+      markHistoryItemSaved,
+      resetTranscriptionResult,
+      trimSilence,
+      setLoadingState,
+    ],
+  );
 
   const handleTranscribe = useCallback(async () => {
-    if (isRecording && audioUploaderRef.current) {
-      setTranscribeAfterRecording(true);
-      audioUploaderRef.current.stopRecording();
+    if ((isRecording || isRecordingBusy) && audioInputPanelRef.current) {
+      const stoppedStatus = audioInputPanelRef.current.stopRecording();
+      const shouldTranscribeStoppedRecording = stoppedStatus === 'recording' || isRecording;
+      setTranscribeAfterRecording(shouldTranscribeStoppedRecording);
+      if (shouldTranscribeStoppedRecording) {
+        setAudioFile(null);
+      }
       return;
     }
 
@@ -242,127 +445,115 @@ export function useTranscriptionFlow({
       return;
     }
 
+    if (isLoadingRef.current || isBatchProcessingRef.current) {
+      return;
+    }
+
     await transcribeNow(audioFile, false);
-  }, [audioFile, audioUploaderRef, isRecording, notify, transcribeNow]);
+  }, [audioFile, audioInputPanelRef, isRecording, isRecordingBusy, notify, transcribeNow]);
 
-  const stopRealtimeTranscription = useCallback(async () => {
-    const session = realtimeSessionRef.current;
-    if (!session) {
+  const handleKeyboardRecordingRelease = useCallback(() => {
+    const stoppedStatus = audioInputPanelRef.current?.stopRecording() ?? 'idle';
+
+    if (stoppedStatus === 'recording') {
+      setTranscribeAfterRecording(true);
+      setAudioFile(null);
       return;
     }
 
-    realtimeSessionRef.current = null;
-    setIsLoading(true);
-    setIsRealtimeTranscribing(false);
-    setLoadingMessage('正在结束实时识别...');
+    if (stoppedStatus === 'requesting') {
+      setTranscribeAfterRecording(false);
+    }
+  }, [audioInputPanelRef]);
+
+  const handleBatchTranscribe = useCallback(async () => {
+    if (isLoadingRef.current || isBatchProcessingRef.current || isRecording || isRecordingBusy) {
+      return;
+    }
+
+    const queuedItems = getQueuedTranscriptionItems();
+    if (queuedItems.length === 0) {
+      notify('批处理队列为空。', 'error');
+      return;
+    }
+
+    resetBatchStop();
+    setBatchProcessingState(true);
 
     try {
-      const result = await session.stop();
-      const finalResult = {
-        transcription: result.transcription,
-        detectedLanguage: '自动识别',
-      };
-
-      if (result.audioFile) {
-        setAudioFile(result.audioFile);
-        await prependHistoryItem(createHistoryItem(result.audioFile, finalResult));
-      }
-
-      if (autoCopy && result.transcription) {
-        try {
-          await navigator.clipboard.writeText(result.transcription);
-          notify('实时识别结果已复制到剪贴板', 'success');
-        } catch (copyError) {
-          console.error('Failed to auto-copy realtime result:', copyError);
-          notify('实时识别完成，但自动复制失败', 'error');
+      for (const item of queuedItems) {
+        const currentItem = getCurrentQueueItem(item.id);
+        if (!currentItem || (currentItem.status !== 'pending' && currentItem.status !== 'error')) {
+          continue;
         }
-      } else {
-        notify('实时识别已完成', 'success');
+
+        if (isBatchStopRequested()) {
+          updateQueueState((currentQueue) =>
+            currentQueue.map((queueItem) =>
+              queueItem.id === item.id ? { ...queueItem, status: 'cancelled', message: '已取消' } : queueItem,
+            ),
+          );
+          continue;
+        }
+
+        updateQueueState((currentQueue) =>
+          currentQueue.map((queueItem) =>
+            queueItem.id === item.id ? { ...queueItem, status: 'processing', message: '识别中' } : queueItem,
+          ),
+        );
+        setAudioFile(item.file);
+        const succeeded = await transcribeNow(item.file, false, (message) => {
+          updateQueueItem(item.id, { message });
+        });
+        updateQueueState((currentQueue) =>
+          currentQueue.map((queueItem) =>
+            queueItem.id === item.id
+              ? {
+                  ...queueItem,
+                  status: isBatchStopRequested() ? 'cancelled' : succeeded ? 'done' : 'error',
+                  message: isBatchStopRequested() ? '已取消' : succeeded ? '已完成' : '识别失败',
+                }
+              : queueItem,
+          ),
+        );
       }
-
-      setTranscription(result.transcription);
-      setDetectedLanguage(finalResult.detectedLanguage);
-    } catch (error) {
-      console.error('Realtime transcription stop error:', error);
-      const errorMessage = error instanceof Error ? error.message : '结束实时识别时发生未知错误。';
-      notify(errorMessage, 'error');
     } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
-      const startedAt = realtimeStartTimeRef.current;
-      setElapsedTime(startedAt ? (Date.now() - startedAt) / 1000 : null);
-      realtimeStartTimeRef.current = null;
-    }
-  }, [autoCopy, createHistoryItem, notify, prependHistoryItem]);
-
-  const handleRealtimeTranscribe = useCallback(async () => {
-    if (realtimeSessionRef.current) {
-      await stopRealtimeTranscription();
-      return;
+      setBatchProcessingState(false);
     }
 
-    clearNotification();
-    setTranscription('');
-    setDetectedLanguage('');
-    setElapsedTime(null);
-    setLoadingMessage('正在启动实时识别...');
-    setIsLoading(true);
-    realtimeStartTimeRef.current = Date.now();
+    const finalQueue = getQueueSnapshot();
+    const completedCount = finalQueue.filter((item) => item.status === 'done').length;
+    const failedCount = finalQueue.filter((item) => item.status === 'error').length;
+    const cancelledCount = finalQueue.filter((item) => item.status === 'cancelled').length;
 
-    try {
-      const session = await startDoubaoRealtimeTranscription(
-        enableItn,
-        selectedDeviceId,
-        {
-          apiKey: asrConfig.doubaoApiKey,
-          accessKey: asrConfig.doubaoAccessKey,
-        },
-        {
-          onStatus: setLoadingMessage,
-          onPartialResult: (text) => {
-            setTranscription(text);
-            setDetectedLanguage('自动识别');
-          },
-          onFinalResult: (text) => {
-            setTranscription(text);
-            setDetectedLanguage(text ? '自动识别' : '');
-          },
-          onError: (error) => {
-            console.error('Realtime transcription error:', error);
-            notify(error.message, 'error');
-          },
-        },
-      );
-
-      realtimeSessionRef.current = session;
-      setIsRealtimeTranscribing(true);
-      setLoadingMessage('实时识别中...');
-    } catch (error) {
-      console.error('Realtime transcription error:', error);
-      const errorMessage = error instanceof Error ? error.message : '启动实时识别时发生未知错误。';
-      notify(errorMessage, 'error');
-      setIsLoading(false);
-      setLoadingMessage('');
-      realtimeStartTimeRef.current = null;
+    if (isBatchStopRequested()) {
+      notify('批处理已取消', 'success');
+    } else if (failedCount > 0) {
+      notify(`批处理完成：${completedCount} 成功，${failedCount} 失败`, 'error');
+    } else if (cancelledCount > 0) {
+      notify(`批处理完成：${completedCount} 成功，${cancelledCount} 取消`, 'success');
+    } else {
+      notify(`批处理完成：${completedCount} 个音频已识别`, 'success');
     }
   }, [
-    asrConfig.doubaoAccessKey,
-    asrConfig.doubaoApiKey,
-    clearNotification,
-    enableItn,
+    getCurrentQueueItem,
+    getQueueSnapshot,
+    getQueuedTranscriptionItems,
+    isBatchStopRequested,
+    isRecording,
+    isRecordingBusy,
     notify,
-    selectedDeviceId,
-    stopRealtimeTranscription,
+    resetBatchStop,
+    setBatchProcessingState,
+    transcribeNow,
+    updateQueueItem,
+    updateQueueState,
   ]);
 
   const handleCancel = useCallback(() => {
-    if (realtimeSessionRef.current) {
-      void stopRealtimeTranscription();
-      return;
-    }
-
-    abortControllerRef.current?.abort();
-  }, [stopRealtimeTranscription]);
+    requestBatchStop();
+    abortCurrentRequest();
+  }, [abortCurrentRequest, requestBatchStop]);
 
   const handleCopy = useCallback(async () => {
     if (!transcription) {
@@ -379,68 +570,120 @@ export function useTranscriptionFlow({
     }
   }, [notify, transcription]);
 
+  const handleTranscriptionChange = useCallback((nextTranscription: string) => {
+    setTranscription(nextTranscription);
+    setSegments(normalizeSegments(nextTranscription));
+  }, []);
+
+  const handleSaveTranscriptionToHistory = useCallback(
+    async (canUpdateActiveHistory = true) => {
+      const { saved, segments: nextSegments } = await saveCurrentTranscript({
+        audioFile,
+        transcription,
+        detectedLanguage,
+        segments,
+        canUpdateActiveHistory,
+      });
+      if (saved) {
+        setSegments(nextSegments);
+      }
+      return saved;
+    },
+    [audioFile, detectedLanguage, saveCurrentTranscript, segments, transcription],
+  );
+
   const handleRetry = useCallback(() => {
-    if (audioFile) {
-      void transcribeNow(audioFile, true);
-    }
-  }, [audioFile, transcribeNow]);
-
-  const handleTranscriptionResultFromPip = useCallback(async (result: PipTranscriptionResult) => {
-    setAudioFile(result.audioFile);
-    setTranscription(result.transcription);
-    setDetectedLanguage(result.detectedLanguage);
-
-    if (!result.transcription) {
+    if (!audioFile || isLoadingRef.current || isBatchProcessingRef.current || isRecording || isRecordingBusy) {
       return;
     }
 
-    notify('输入法模式识别成功', 'success');
-    await prependHistoryItem(createHistoryItem(result.audioFile, result));
-  }, [createHistoryItem, notify, prependHistoryItem]);
+    void transcribeNow(audioFile, true);
+  }, [audioFile, isRecording, isRecordingBusy, transcribeNow]);
 
-  const restoreHistoryItem = useCallback((item: HistoryItem) => {
-    if (!item.audioFile) {
-      notify('无法恢复音频文件，可能已丢失。', 'error');
-      return false;
-    }
+  const handleTranscriptionResultFromPip = useCallback(
+    async (result: PipTranscriptionResult) => {
+      const nextSegments = normalizeSegments(result.transcription, result.segments);
+      setAudioFile(result.audioFile);
+      setTranscription(result.transcription);
+      setDetectedLanguage(result.detectedLanguage);
+      setSegments(nextSegments);
+      resetHistoryDraft();
 
-    setAudioFile(item.audioFile);
-    setTranscription(item.transcription);
-    setDetectedLanguage(item.detectedLanguage);
-    notify('已从历史记录恢复', 'success');
-    return true;
-  }, [notify]);
+      if (!result.transcription) {
+        return;
+      }
+
+      notify('输入法模式识别成功', 'success');
+      const historyItem = createHistoryItem(result.audioFile, {
+        ...result,
+        segments: nextSegments,
+      });
+      const savedToHistory = await prependHistoryItem(historyItem);
+      markHistoryItemSaved(historyItem, savedToHistory);
+    },
+    [createHistoryItem, markHistoryItemSaved, notify, prependHistoryItem, resetHistoryDraft],
+  );
+
+  const restoreHistoryItem = useCallback(
+    (item: HistoryItem) => {
+      const restoredAudioFile = item.audioUrl ? createRemoteAudioFile(item.audioUrl) : item.audioFile || null;
+      setAudioFile(restoredAudioFile);
+      setQueueState([]);
+      setElapsedTime(null);
+      setTranscription(item.transcription);
+      setDetectedLanguage(item.detectedLanguage);
+      setSegments(restoreHistoryDraft(item));
+      notify(restoredAudioFile ? '已从历史记录恢复' : '已恢复历史文本，原始音频不可用', 'success');
+      return true;
+    },
+    [notify, restoreHistoryDraft, setQueueState],
+  );
 
   const handleRecordingChange = useCallback((recording: boolean) => {
     setIsRecording(recording);
   }, []);
 
+  const handleRecordingBusyChange = useCallback((recordingBusy: boolean) => {
+    setIsRecordingBusy(recordingBusy);
+  }, []);
+
   useEffect(() => {
-    if (transcribeAfterRecording && audioFile && !isRecording) {
+    if (transcribeAfterRecording && audioFile && !isRecording && !isRecordingBusy) {
       setTranscribeAfterRecording(false);
       void transcribeNow(audioFile);
     }
-  }, [audioFile, isRecording, transcribeAfterRecording, transcribeNow]);
+  }, [audioFile, isRecording, isRecordingBusy, transcribeAfterRecording, transcribeNow]);
 
   return {
     audioFile,
     transcription,
-    setTranscription,
+    segments,
     detectedLanguage,
     isLoading,
     loadingMessage,
     isRecording,
-    isRealtimeTranscribing,
+    isRecordingBusy,
+    queue,
+    isBatchProcessing,
     copied,
     elapsedTime,
     realtimeElapsedTime,
+    activeHistoryItemId,
+    isTranscriptionDirty: getIsTranscriptionDirty(transcription, detectedLanguage),
     handleCancel,
     handleCopy,
+    handleBatchTranscribe,
+    handleFilesChange,
+    handleTranscriptionChange,
+    handleSaveTranscriptionToHistory,
     handleFileChange,
     handleRecordingChange,
-    handleRealtimeTranscribe,
+    handleRecordingBusyChange,
     handleRetry,
+    removeQueueItem,
+    clearQueue,
     handleTranscribe,
+    handleKeyboardRecordingRelease,
     handleTranscriptionResultFromPip,
     restoreHistoryItem,
   };

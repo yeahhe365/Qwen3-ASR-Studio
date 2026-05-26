@@ -4,6 +4,7 @@ export enum AsrProvider {
   QWEN = 'qwen',
   DOUBAO = 'doubao',
   GEMINI = 'gemini',
+  NVIDIA_NIM = 'nvidia-nim',
 }
 
 export interface AsrProviderConfig {
@@ -12,6 +13,8 @@ export interface AsrProviderConfig {
   doubaoApiKey: string;
   doubaoAccessKey: string;
   geminiApiKey: string;
+  nvidiaNimBaseUrl: string;
+  nvidiaNimApiKey: string;
 }
 
 export type Notification = {
@@ -20,24 +23,51 @@ export type Notification = {
 };
 
 export enum Language {
-  AUTO = "auto",
-  CHINESE = "zh",
-  ENGLISH = "en",
-  JAPANESE = "ja",
-  KOREAN = "ko",
-  SPANISH = "es",
-  FRENCH = "fr",
-  GERMAN = "de",
-  ARABIC = "ar",
-  ITALIAN = "it",
-  RUSSIAN = "ru",
-  PORTUGUESE = "pt",
+  AUTO = 'auto',
+  CHINESE = 'zh',
+  ENGLISH = 'en',
+  JAPANESE = 'ja',
+  KOREAN = 'ko',
+  SPANISH = 'es',
+  FRENCH = 'fr',
+  GERMAN = 'de',
+  ARABIC = 'ar',
+  ITALIAN = 'it',
+  RUSSIAN = 'ru',
+  PORTUGUESE = 'pt',
 }
 
 export enum CompressionLevel {
   ORIGINAL = 'original',
   MEDIUM = 'medium',
   MINIMUM = 'minimum',
+}
+
+export interface TranscriptionSegment {
+  id: string;
+  text: string;
+  startTime?: number;
+  endTime?: number;
+  speaker?: string;
+  confidence?: number;
+}
+
+export interface TranscriptionResult {
+  transcription: string;
+  detectedLanguage: string;
+  segments?: TranscriptionSegment[];
+  provider?: AsrProvider;
+  createdAt?: number;
+}
+
+export type TranscriptionQueueStatus = 'pending' | 'processing' | 'done' | 'error' | 'cancelled';
+
+export interface TranscriptionQueueItem {
+  id: string;
+  file: File;
+  fileName: string;
+  status: TranscriptionQueueStatus;
+  message?: string;
 }
 
 export interface HistoryItem {
@@ -47,7 +77,15 @@ export interface HistoryItem {
   detectedLanguage: string;
   context: string;
   timestamp: number;
-  audioFile: File;
+  audioFile?: File;
+  audioUrl?: string;
+  segments?: TranscriptionSegment[];
+  provider?: AsrProvider;
+  language?: Language;
+  enableItn?: boolean;
+  compressionLevel?: CompressionLevel;
+  trimSilence?: boolean;
+  enableLongAudioChunking?: boolean;
 }
 
 export interface BeforeInstallPromptEvent extends Event {
@@ -61,6 +99,7 @@ export interface BeforeInstallPromptEvent extends Event {
 
 declare global {
   interface Window {
+    webkitAudioContext?: typeof AudioContext;
     documentPictureInPicture?: {
       requestWindow(options?: { width: number; height: number }): Promise<Window>;
       readonly window?: Window;

@@ -1,240 +1,388 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { transcribeAudio } from '../services/asrService';
+import { CompressionLevel } from '../types';
 import type { AsrProviderConfig, Language } from '../types';
-import { MicrophoneIcon } from './icons/MicrophoneIcon';
-import { CheckIcon } from './icons/CheckIcon';
+import { compressAudio, getEffectiveCompressionLevel } from '../services/audioService';
+import { createTimestampedAudioFile } from '../services/audioFileUtils';
+import { stopMediaStreamTracks } from '../services/mediaStreamUtils';
 import { CloseIcon } from './icons/CloseIcon';
-import { LoaderIcon } from './icons/LoaderIcon';
-import { StopIcon } from './icons/StopIcon';
+import { PipStatusIcon } from './pip-view/PipStatusIcon';
+import { PipViewStyles } from './pip-view/PipViewStyles';
+import {
+  canCancelPipRecording,
+  canStartPipRecording,
+  getPipMessageClassName,
+  getPipPrimaryButtonClassName,
+  getPipPrimaryButtonLabel,
+  getPipPrimaryButtonTitle,
+  isPipBusy,
+  isPipPrimaryButtonDisabled,
+  type PipViewStatus,
+} from './pip-view/pipViewState';
 
 interface PipViewProps {
-  onTranscriptionResult: (result: {
-    transcription: string;
-    detectedLanguage: string;
-    audioFile: File;
-  }) => void;
-  theme: 'light' | 'dark';
+  onTranscriptionResult: (result: { transcription: string; detectedLanguage: string; audioFile: File }) => void;
+  onBusyChange?: (isBusy: boolean) => void;
+  disabled?: boolean;
   context: string;
   language: Language;
   enableItn: boolean;
   selectedDeviceId: string;
+  echoCancellation: boolean;
+  noiseSuppression: boolean;
+  autoGainControl: boolean;
   asrConfig: AsrProviderConfig;
 }
 
-export const PipView: React.FC<PipViewProps> = ({ 
-  onTranscriptionResult, 
-  theme, 
-  context, 
-  language, 
-  enableItn, 
-  selectedDeviceId, 
+export const PipView: React.FC<PipViewProps> = ({
+  onTranscriptionResult,
+  onBusyChange,
+  disabled = false,
+  context,
+  language,
+  enableItn,
+  selectedDeviceId,
+  echoCancellation,
+  noiseSuppression,
+  autoGainControl,
   asrConfig,
 }) => {
-    type Status = 'idle' | 'recording' | 'processing' | 'success' | 'error';
-    const [status, setStatus] = useState<Status>('idle');
-    const [message, setMessage] = useState<string>('');
-    const inputRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<PipViewStatus>('idle');
+  const [message, setMessage] = useState<string>('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const shouldDiscardRecordingRef = useRef(false);
+  const cancelPendingStartRef = useRef(false);
+  const startRequestIdRef = useRef(0);
+  const isMountedRef = useRef(true);
 
-    useEffect(() => {
-        if (status === 'success' && inputRef.current) {
-            inputRef.current.select();
-        }
-    }, [status]);
+  useEffect(() => {
+    if (status === 'success' && inputRef.current) {
+      inputRef.current.select();
+    }
+  }, [status]);
 
-    const handleTranscription = useCallback(async (audioFile: File) => {
-        setStatus('processing');
-        setMessage('正在识别...');
+  useEffect(() => {
+    onBusyChange?.(isPipBusy(status));
+  }, [onBusyChange, status]);
+
+  useEffect(() => {
+    return () => {
+      onBusyChange?.(false);
+    };
+  }, [onBusyChange]);
+
+  const cleanupStream = useCallback(() => {
+    stopMediaStreamTracks(streamRef.current);
+    streamRef.current = null;
+  }, []);
+
+  const cleanupRecordingResources = useCallback(
+    (preserveDiscardFlag = false) => {
+      audioChunksRef.current = [];
+      cleanupStream();
+      mediaRecorderRef.current = null;
+      if (!preserveDiscardFlag) {
+        shouldDiscardRecordingRef.current = false;
+      }
+    },
+    [cleanupStream],
+  );
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+      cancelPendingStartRef.current = true;
+      startRequestIdRef.current += 1;
+
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        shouldDiscardRecordingRef.current = true;
         try {
-            const controller = new AbortController();
-            const result = await transcribeAudio(audioFile, context, language, enableItn, asrConfig, () => {}, controller.signal);
-            
-            if (result.transcription) {
-                setMessage(result.transcription);
-                onTranscriptionResult({
-                    transcription: result.transcription,
-                    detectedLanguage: result.detectedLanguage,
-                    audioFile,
-                });
-                setStatus('success');
-            } else {
-                setMessage('未能识别到任何内容');
-                setStatus('error');
-            }
+          recorder.stop();
         } catch (err) {
-            console.error('Transcription error:', err);
-            const msg = err instanceof Error ? err.message : '转录过程中发生未知错误';
-            setMessage(msg);
-            setStatus('error');
+          console.error('Failed to stop PiP recorder during cleanup:', err);
         }
-    }, [asrConfig, context, language, enableItn, onTranscriptionResult]);
-    
-    const stopRecording = useCallback(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
-    }, []);
+      }
 
-    const handleCancel = useCallback(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.onstop = () => {
-                const stream = mediaRecorderRef.current?.stream;
-                stream?.getTracks().forEach(track => track.stop());
-                mediaRecorderRef.current = null;
-                audioChunksRef.current = [];
-            };
-            mediaRecorderRef.current.stop();
-            setStatus('idle');
+      cleanupRecordingResources(true);
+    };
+  }, [cleanupRecordingResources]);
+
+  const handleTranscription = useCallback(
+    async (audioFile: File) => {
+      const controller = new AbortController();
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = controller;
+
+      setStatus('processing');
+      setMessage('正在识别...');
+      try {
+        const effectiveCompressionLevel = getEffectiveCompressionLevel(
+          asrConfig.provider,
+          audioFile,
+          CompressionLevel.ORIGINAL,
+        );
+        const fileToTranscribe = await compressAudio(audioFile, effectiveCompressionLevel);
+        const result = await transcribeAudio(
+          fileToTranscribe,
+          context,
+          language,
+          enableItn,
+          asrConfig,
+          () => {},
+          controller.signal,
+        );
+
+        if (!isMountedRef.current || controller.signal.aborted) {
+          return;
+        }
+
+        if (result.transcription) {
+          setMessage(result.transcription);
+          onTranscriptionResult({
+            transcription: result.transcription,
+            detectedLanguage: result.detectedLanguage,
+            audioFile,
+          });
+          setStatus('success');
+        } else {
+          setMessage('未能识别到任何内容');
+          setStatus('error');
+        }
+      } catch (err) {
+        if (!isMountedRef.current || controller.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
+          if (isMountedRef.current) {
             setMessage('');
+            setStatus('idle');
+          }
+          return;
         }
-    }, []);
 
-    const startRecording = async () => {
-        setMessage('正在聆听...');
-        setStatus('recording');
+        console.error('Transcription error:', err);
+        const msg = err instanceof Error ? err.message : '转录过程中发生未知错误';
+        setMessage(msg);
+        setStatus('error');
+      } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+      }
+    },
+    [asrConfig, context, language, enableItn, onTranscriptionResult],
+  );
+
+  const stopRecording = useCallback(() => {
+    if (status === 'requesting') {
+      cancelPendingStartRef.current = true;
+      startRequestIdRef.current += 1;
+      shouldDiscardRecordingRef.current = true;
+      cleanupRecordingResources();
+      setStatus('idle');
+      setMessage('');
+      return;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  }, [cleanupRecordingResources, status]);
+
+  const handleCancel = useCallback(() => {
+    abortControllerRef.current?.abort();
+
+    const recorder = mediaRecorderRef.current;
+    cancelPendingStartRef.current = true;
+    startRequestIdRef.current += 1;
+    shouldDiscardRecordingRef.current = true;
+    audioChunksRef.current = [];
+
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch (err) {
+        console.error('Failed to stop PiP recorder after cancel:', err);
+        cleanupRecordingResources();
+      }
+    } else if (recorder) {
+      cleanupRecordingResources(true);
+    } else {
+      cleanupRecordingResources();
+    }
+
+    setStatus('idle');
+    setMessage('');
+  }, [cleanupRecordingResources]);
+
+  const handleRecordingError = useCallback(
+    (recorder: MediaRecorder) => {
+      shouldDiscardRecordingRef.current = true;
+      cleanupRecordingResources(true);
+
+      if (isMountedRef.current) {
+        setMessage('录音过程中发生错误，请重新尝试。');
+        setStatus('error');
+      }
+
+      if (recorder.state !== 'inactive') {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    deviceId: selectedDeviceId === 'default' ? undefined : { exact: selectedDeviceId },
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
-                }
-            });
-            const recorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = recorder;
-            audioChunksRef.current = [];
-
-            recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) audioChunksRef.current.push(event.data);
-            };
-
-            recorder.onstop = () => {
-                const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
-                const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = (now.getMonth() + 1).toString().padStart(2, '0');
-                const day = now.getDate().toString().padStart(2, '0');
-                const hours = now.getHours().toString().padStart(2, '0');
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                const formattedDate = `${year}-${month}-${day}_${hours}-${minutes}`;
-                const fileExtension = mimeType.split('/')[1]?.split(';')[0] || 'webm';
-                const audioFile = new File([audioBlob], `pip-recording-${formattedDate}.${fileExtension}`, { type: mimeType });
-
-                audioChunksRef.current = [];
-                stream.getTracks().forEach(track => track.stop());
-                handleTranscription(audioFile);
-            };
-
-            recorder.start();
+          recorder.stop();
+          return;
         } catch (err) {
-            console.error("Error accessing microphone:", err);
-            setMessage("麦克风访问被拒绝");
-            setStatus('error');
+          console.error('Failed to stop PiP recorder after error:', err);
         }
-    };
-    
-    const handleClick = () => {
-        if (status === 'recording') {
-            stopRecording();
-        } else if (status === 'idle' || status === 'success' || status === 'error') {
-            startRecording();
-        }
-    };
+      }
 
-    const getIcon = () => {
-        const iconClass = "w-6 h-6 text-white";
-        switch (status) {
-            case 'idle':
-                return <MicrophoneIcon className={iconClass} />;
-            case 'recording':
-                return <StopIcon className={iconClass} />;
-            case 'processing':
-                return <LoaderIcon color="white" className="w-6 h-6" />;
-            case 'success':
-                 return <CheckIcon className={iconClass} />;
-            case 'error':
-                 return <CloseIcon className={iconClass} />;
-            default:
-                return <MicrophoneIcon className={iconClass} />;
-        }
-    };
+      cleanupRecordingResources();
+    },
+    [cleanupRecordingResources],
+  );
 
-    const getIconContainerClass = () => {
-        const base = "p-2 rounded-md transition-colors duration-300 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary focus:ring-offset-base-100 disabled:opacity-50 disabled:cursor-not-allowed";
-        switch (status) {
-            case 'idle':
-                return `${base} bg-brand-primary animate-pulse-idle`;
-            case 'recording': 
-                return `${base} bg-red-600 animate-pulse-custom`;
-            case 'error': 
-                return `${base} bg-red-600`;
-            case 'success': 
-                return `${base} bg-green-600`;
-            case 'processing':
-            default: 
-                return `${base} bg-brand-primary`;
-        }
-    };
+  const startRecording = async () => {
+    if (disabled) {
+      setMessage('主窗口识别进行中');
+      setStatus('idle');
+      return;
+    }
 
-    return (
-        <div 
-            className="flex items-center h-screen w-full bg-base-100 font-sans text-content-100 p-4"
+    if (!navigator.mediaDevices) {
+      setMessage('您的浏览器不支持录音功能。');
+      setStatus('error');
+      return;
+    }
+
+    if (mediaRecorderRef.current?.state === 'recording') {
+      return;
+    }
+
+    const requestId = startRequestIdRef.current + 1;
+    startRequestIdRef.current = requestId;
+    cancelPendingStartRef.current = false;
+    setMessage('正在准备麦克风...');
+    setStatus('requesting');
+    shouldDiscardRecordingRef.current = false;
+    audioChunksRef.current = [];
+
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: selectedDeviceId === 'default' ? undefined : { exact: selectedDeviceId },
+          echoCancellation,
+          noiseSuppression,
+          autoGainControl,
+        },
+      });
+
+      if (!isMountedRef.current || requestId !== startRequestIdRef.current || cancelPendingStartRef.current) {
+        stopMediaStreamTracks(stream);
+        if (isMountedRef.current && requestId === startRequestIdRef.current) {
+          setMessage('');
+          setStatus('idle');
+        }
+        return;
+      }
+
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const shouldDiscard = shouldDiscardRecordingRef.current;
+        const audioChunks = audioChunksRef.current;
+        const mimeType = recorder.mimeType || 'audio/webm';
+        cleanupRecordingResources();
+
+        if (shouldDiscard || !isMountedRef.current) {
+          return;
+        }
+
+        if (audioChunks.length === 0) {
+          setMessage('未捕获到音频，请重试');
+          setStatus('error');
+          return;
+        }
+
+        const audioFile = createTimestampedAudioFile(audioChunks, mimeType, 'pip-recording');
+        handleTranscription(audioFile);
+      };
+
+      recorder.onerror = () => {
+        handleRecordingError(recorder);
+      };
+
+      recorder.start();
+      cancelPendingStartRef.current = false;
+      setMessage('正在聆听...');
+      setStatus('recording');
+    } catch (err) {
+      if (stream && stream !== streamRef.current) {
+        stopMediaStreamTracks(stream);
+      }
+
+      if (!isMountedRef.current || requestId !== startRequestIdRef.current || cancelPendingStartRef.current) {
+        return;
+      }
+
+      console.error('Error accessing microphone:', err);
+      cleanupRecordingResources();
+
+      if (isMountedRef.current) {
+        setMessage('麦克风访问被拒绝或不可用。');
+        setStatus('error');
+      }
+    }
+  };
+
+  const handleClick = () => {
+    if (canCancelPipRecording(status)) {
+      stopRecording();
+    } else if (canStartPipRecording(status, disabled)) {
+      startRecording();
+    }
+  };
+
+  return (
+    <div className="workspace-shell flex h-screen w-full items-center p-4 font-sans text-content-100">
+      <PipViewStyles />
+      <div className="flex flex-shrink-0 items-center gap-2">
+        <button
+          onClick={handleClick}
+          disabled={isPipPrimaryButtonDisabled(status, disabled)}
+          className={getPipPrimaryButtonClassName(status)}
+          aria-label={getPipPrimaryButtonLabel(status, disabled)}
+          title={getPipPrimaryButtonTitle(status, disabled)}
         >
-            <style>{`
-                @keyframes pulse-custom { 50% { opacity: .6; } }
-                .animate-pulse-custom { animation: pulse-custom 2s cubic-bezier(0.4, 0.6, 1) infinite; }
-                @keyframes pulse-idle {
-                  0% {
-                    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
-                  }
-                  70% {
-                    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-                  }
-                  100% {
-                    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-                  }
-                }
-                .animate-pulse-idle {
-                  animation: pulse-idle 2s infinite;
-                }
-            `}</style>
-            <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                    onClick={handleClick}
-                    disabled={status === 'processing'}
-                    className={getIconContainerClass()}
-                    aria-label={
-                        status === 'recording' ? '停止录音' :
-                        status === 'processing' ? '正在识别' : '录音'
-                    }
-                >
-                    {getIcon()}
-                </button>
-                {status === 'recording' && (
-                    <button
-                        onClick={handleCancel}
-                        title="取消"
-                        aria-label="取消录音"
-                        className="p-2 rounded-md transition-colors duration-300 bg-base-300 text-content-100 hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 focus:ring-offset-base-100"
-                    >
-                        <CloseIcon className="w-6 h-6" />
-                    </button>
-                )}
-            </div>
-            <input
-                ref={inputRef}
-                type="text"
-                readOnly
-                value={message}
-                placeholder='点击录音'
-                className={`ml-4 text-2xl font-semibold bg-transparent border-none focus:ring-0 p-0 w-full placeholder-content-200 ${status === 'success' || status === 'error' ? 'text-content-100' : 'text-content-200'}`}
-            />
-        </div>
-    );
+          <PipStatusIcon status={status} />
+        </button>
+        {canCancelPipRecording(status) && (
+          <button
+            onClick={handleCancel}
+            title="取消"
+            aria-label="取消录音"
+            className="flex h-11 w-11 items-center justify-center rounded-md bg-base-300 text-content-100 transition-colors duration-300 hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 focus:ring-offset-base-100"
+          >
+            <CloseIcon className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="text"
+        readOnly
+        value={message}
+        placeholder={disabled ? '主窗口识别进行中' : '点击录音'}
+        className={getPipMessageClassName(status)}
+      />
+    </div>
+  );
 };

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PIP_WINDOW_OPTIONS } from '../constants';
 import type { Notification } from '../types';
 
@@ -7,6 +7,16 @@ type Notify = (message: string, type: Notification['type']) => void;
 export function useDocumentPip(notify: Notify) {
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const [pipContainer, setPipContainer] = useState<HTMLElement | null>(null);
+  const [isOpeningPip, setIsOpeningPip] = useState(false);
+  const isMountedRef = useRef(true);
+  const isOpeningPipRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      isOpeningPipRef.current = false;
+    };
+  }, []);
 
   const closePip = useCallback(() => {
     pipWindow?.close();
@@ -18,27 +28,20 @@ export function useDocumentPip(notify: Notify) {
       return;
     }
 
-    if (pipWindow) {
+    if (pipWindow || isOpeningPipRef.current) {
       return;
     }
 
+    isOpeningPipRef.current = true;
+    setIsOpeningPip(true);
     try {
       const pipWin = await window.documentPictureInPicture!.requestWindow({
         width: PIP_WINDOW_OPTIONS.width,
         height: PIP_WINDOW_OPTIONS.height,
       });
 
-      Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).forEach(node => {
+      Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).forEach((node) => {
         pipWin.document.head.appendChild(node.cloneNode(true));
-      });
-
-      Array.from(document.head.querySelectorAll('script')).forEach(script => {
-        const newScript = pipWin.document.createElement('script');
-        if (script.src) {
-          newScript.src = script.src;
-        }
-        newScript.textContent = script.textContent;
-        pipWin.document.head.appendChild(newScript);
       });
 
       pipWin.document.title = '输入法模式 - ASR Studio';
@@ -54,21 +57,41 @@ export function useDocumentPip(notify: Notify) {
       pipWin.addEventListener(
         'pagehide',
         () => {
+          if (!isMountedRef.current) {
+            return;
+          }
+
           setPipWindow(null);
           setPipContainer(null);
         },
-        { once: true }
+        { once: true },
       );
+
+      if (!isMountedRef.current) {
+        pipWin.close();
+        return;
+      }
 
       setPipWindow(pipWin);
       setPipContainer(container);
     } catch (error) {
       console.error('Failed to open document PiP window:', error);
-      notify('打开画中画窗口失败。用户可能已拒绝请求。', 'error');
+      if (isMountedRef.current) {
+        notify('打开画中画窗口失败。用户可能已拒绝请求。', 'error');
+      }
+    } finally {
+      isOpeningPipRef.current = false;
+      if (isMountedRef.current) {
+        setIsOpeningPip(false);
+      }
     }
   }, [notify, pipWindow]);
 
   const togglePip = useCallback(() => {
+    if (isOpeningPipRef.current) {
+      return;
+    }
+
     if (pipWindow) {
       closePip();
     } else {
@@ -78,6 +101,7 @@ export function useDocumentPip(notify: Notify) {
 
   return {
     isPipActive: Boolean(pipWindow),
+    isOpeningPip,
     pipContainer,
     openPip,
     closePip,

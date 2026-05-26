@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-brand-primary: #0f766e;
+  --color-brand-secondary: #115e59;
+  --color-accent: #3158a5;
+  --color-warning: #b45309;
+  --color-base-100: #f5f7f8;
+  --color-base-200: #ffffff;
+  --color-base-300: #d8dee6;
+  --color-content-100: #0f172a;
+  --color-content-200: #5b6675;
+  --theme-bg-primary: #ffffff;
+  --theme-bg-secondary: #f4f7f7;
+  --theme-bg-tertiary: #e8edf0;
+  --theme-bg-input: #ffffff;
+  --theme-bg-accent: #0f766e;
+  --theme-bg-accent-hover: #115e59;
+  --theme-border-primary: #d8dee6;
+  --theme-border-secondary: #d8dee6;
+  --theme-border-focus: #0f766e;
+  --theme-text-primary: #0f172a;
+  --theme-text-secondary: #475569;
+  --theme-text-tertiary: #64748b;
+  --theme-text-link: #0f766e;
+  --theme-text-accent: #ffffff;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
+body {
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.08), transparent 34%),
+    linear-gradient(225deg, rgba(180, 83, 9, 0.07), transparent 30%), var(--color-base-100);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-base-300) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-base-300);
+  border-radius: 999px;
+}
+
+.dark {
+  --color-brand-primary: #5eead4;
+  --color-brand-secondary: #2dd4bf;
+  --color-accent: #8fb4ff;
+  --color-warning: #fbbf24;
+  --color-base-100: #101312;
+  --color-base-200: #191d1c;
+  --color-base-300: #2e3533;
+  --color-content-100: #f4f7f5;
+  --color-content-200: #aeb8b5;
+  --theme-bg-primary: #191d1c;
+  --theme-bg-secondary: #101312;
+  --theme-bg-tertiary: #28302e;
+  --theme-bg-input: #202624;
+  --theme-bg-accent: #5eead4;
+  --theme-bg-accent-hover: #2dd4bf;
+  --theme-border-primary: #2e3533;
+  --theme-border-secondary: #3b4542;
+  --theme-border-focus: #5eead4;
+  --theme-text-primary: #f4f7f5;
+  --theme-text-secondary: #cdd6d3;
+  --theme-text-tertiary: #aeb8b5;
+  --theme-text-link: #5eead4;
+  --theme-text-accent: #052e2b;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.animate-pulsing-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@layer components {
+  .workspace-shell {
+    color: var(--color-content-100);
+    background:
+      linear-gradient(135deg, rgba(15, 118, 110, 0.09), transparent 32%),
+      linear-gradient(225deg, rgba(49, 88, 165, 0.08), transparent 34%), var(--color-base-100);
+  }
+
+  .dark .workspace-shell {
+    background:
+      linear-gradient(135deg, rgba(94, 234, 212, 0.06), transparent 32%),
+      linear-gradient(225deg, rgba(143, 180, 255, 0.06), transparent 36%), var(--color-base-100);
+  }
+
+  .surface-panel {
+    border: 1px solid color-mix(in srgb, var(--color-base-300) 84%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-base-200) 94%, transparent);
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+  }
+
+  .dark .surface-panel {
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  }
+
+  .surface-inset {
+    border: 1px solid color-mix(in srgb, var(--color-base-300) 72%, transparent);
+    border-radius: 8px;
+    background: var(--color-base-100);
+  }
+
+  .panel-header {
+    @apply flex min-w-0 items-center justify-between gap-3 px-4 py-3;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-base-300) 68%, transparent);
+  }
+
+  .panel-title {
+    @apply truncate text-sm font-semibold;
+    color: var(--color-content-100);
+  }
+
+  .panel-subtitle {
+    @apply mt-0.5 truncate text-xs;
+    color: var(--color-content-200);
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase leading-none;
+    color: var(--color-content-200);
+    letter-spacing: 0;
+  }
+
+  .status-pill {
+    @apply inline-flex min-h-7 items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold;
+    border: 1px solid color-mix(in srgb, var(--color-base-300) 68%, transparent);
+    background: var(--color-base-100);
+    color: var(--color-content-200);
+  }
+
+  .icon-button {
+    @apply inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md transition-colors focus:outline-none focus:ring-2;
+    color: var(--color-content-200);
+    background: transparent;
+    --tw-ring-color: color-mix(in srgb, var(--color-brand-primary) 28%, transparent);
+  }
+
+  .icon-button:hover {
+    color: var(--color-content-100);
+    background: color-mix(in srgb, var(--color-base-300) 42%, transparent);
+  }
+
+  .primary-action {
+    @apply inline-flex min-h-12 min-w-0 items-center justify-center rounded-md px-4 py-3 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:shadow-none sm:text-base;
+    background: var(--color-brand-primary);
+    color: var(--theme-text-accent);
+    --tw-ring-color: color-mix(in srgb, var(--color-brand-primary) 36%, transparent);
+    --tw-ring-offset-color: var(--color-base-100);
+    box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
+  }
+
+  .primary-action:hover {
+    background: var(--color-brand-secondary);
+  }
+
+  .primary-action:disabled {
+    background: var(--color-base-300);
+    color: var(--color-content-200);
+  }
+
+  .secondary-action {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid color-mix(in srgb, var(--color-base-300) 70%, transparent);
+    background: var(--color-base-100);
+    color: var(--color-content-100);
+    --tw-ring-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+  }
+
+  .secondary-action:hover {
+    background: color-mix(in srgb, var(--color-base-300) 36%, var(--color-base-100));
+  }
+
+  .field-control {
+    @apply w-full rounded-md px-3 py-2 text-sm shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-60;
+    border: 1px solid color-mix(in srgb, var(--color-base-300) 76%, transparent);
+    background: var(--color-base-100);
+    color: var(--color-content-100);
+  }
+
+  .field-control::placeholder {
+    color: var(--color-content-200);
+  }
+
+  .field-control:focus {
+    border-color: var(--color-brand-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  }
+}

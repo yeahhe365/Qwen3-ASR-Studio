@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const KeyboardIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (

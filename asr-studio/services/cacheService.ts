@@ -1,4 +1,5 @@
-import type { HistoryItem } from '../types';
+import type { HistoryItem, TranscriptionResult } from '../types';
+import { normalizeStoredHistoryItems } from './historyStorage';
 
 const DB_NAME = 'ASR-Cache';
 const DB_VERSION = 4;
@@ -16,7 +17,7 @@ function getDb(): Promise<IDBDatabase> {
 
       request.onerror = () => {
         console.error('IndexedDB error:', request.error);
-        reject('Error opening IndexedDB.');
+        reject(request.error ?? new Error('Error opening IndexedDB.'));
       };
 
       request.onsuccess = () => {
@@ -48,17 +49,19 @@ export async function getFileHash(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Transcription Cache
-interface CachedTranscription {
-  transcription: string;
-  detectedLanguage: string;
-}
+export async function getCachedTranscription(hash: string): Promise<TranscriptionResult | null> {
+  let db: IDBDatabase;
+  try {
+    db = await getDb();
+  } catch (error) {
+    console.error('Failed to open transcription cache:', error);
+    return null;
+  }
 
-export async function getCachedTranscription(hash: string): Promise<CachedTranscription | null> {
-  const db = await getDb();
   return new Promise((resolve) => {
     const transaction = db.transaction(TRANSCRIPTIONS_STORE, 'readonly');
     const store = transaction.objectStore(TRANSCRIPTIONS_STORE);
@@ -73,7 +76,7 @@ export async function getCachedTranscription(hash: string): Promise<CachedTransc
   });
 }
 
-export async function setCachedTranscription(hash: string, data: CachedTranscription): Promise<void> {
+export async function setCachedTranscription(hash: string, data: TranscriptionResult): Promise<void> {
   const db = await getDb();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(TRANSCRIPTIONS_STORE, 'readwrite');
@@ -81,59 +84,90 @@ export async function setCachedTranscription(hash: string, data: CachedTranscrip
     const request = store.put(data, hash);
     request.onsuccess = () => resolve();
     request.onerror = () => {
-        console.error('Failed to set cached transcription:', request.error);
-        reject(request.error);
-    }
+      console.error('Failed to set cached transcription:', request.error);
+      reject(request.error);
+    };
   });
 }
 
 // Recording Cache
 export async function getCachedRecording(): Promise<File | null> {
-    const db = await getDb();
-    return new Promise((resolve) => {
-        const transaction = db.transaction(RECORDINGS_STORE, 'readonly');
-        const store = transaction.objectStore(RECORDINGS_STORE);
-        const request = store.get(RECORDING_KEY);
-        request.onsuccess = () => {
-            if (request.result && request.result instanceof File) {
-                resolve(request.result);
-            } else {
-                resolve(null);
-            }
-        };
-        request.onerror = () => {
-            console.error('Failed to get cached recording:', request.error);
-            resolve(null);
-        };
-    });
+  const db = await getDb();
+  return new Promise((resolve) => {
+    const transaction = db.transaction(RECORDINGS_STORE, 'readonly');
+    const store = transaction.objectStore(RECORDINGS_STORE);
+    const request = store.get(RECORDING_KEY);
+    request.onsuccess = () => {
+      if (request.result && request.result instanceof File) {
+        resolve(request.result);
+      } else {
+        resolve(null);
+      }
+    };
+    request.onerror = () => {
+      console.error('Failed to get cached recording:', request.error);
+      resolve(null);
+    };
+  });
 }
 
 export async function setCachedRecording(file: File): Promise<void> {
-    const db = await getDb();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(RECORDINGS_STORE, 'readwrite');
-        const store = transaction.objectStore(RECORDINGS_STORE);
-        const request = store.put(file, RECORDING_KEY);
-        request.onsuccess = () => resolve();
-        request.onerror = () => {
-            console.error('Failed to set cached recording:', request.error);
-            reject(request.error);
-        }
-    });
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RECORDINGS_STORE, 'readwrite');
+    const store = transaction.objectStore(RECORDINGS_STORE);
+    const request = store.put(file, RECORDING_KEY);
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to set cached recording:', request.error);
+      reject(request.error);
+    };
+  });
 }
 
 export async function clearCachedRecording(): Promise<void> {
-    const db = await getDb();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(RECORDINGS_STORE, 'readwrite');
-        const store = transaction.objectStore(RECORDINGS_STORE);
-        const request = store.delete(RECORDING_KEY);
-        request.onsuccess = () => resolve();
-        request.onerror = () => {
-            console.error('Failed to clear cached recording:', request.error);
-            reject(request.error);
-        }
-    });
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(RECORDINGS_STORE, 'readwrite');
+    const store = transaction.objectStore(RECORDINGS_STORE);
+    const request = store.delete(RECORDING_KEY);
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to clear cached recording:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+export async function clearTranscriptionCache(): Promise<void> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(TRANSCRIPTIONS_STORE, 'readwrite');
+    const store = transaction.objectStore(TRANSCRIPTIONS_STORE);
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to clear transcription cache:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+export async function getStorageEstimate(): Promise<{ usage: number; quota: number } | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.estimate) {
+    return null;
+  }
+
+  try {
+    const estimate = await navigator.storage.estimate();
+    return {
+      usage: estimate.usage || 0,
+      quota: estimate.quota || 0,
+    };
+  } catch (error) {
+    console.error('Failed to estimate storage:', error);
+    return null;
+  }
 }
 
 // --- History Functions ---
@@ -146,9 +180,9 @@ export async function addHistoryItem(item: HistoryItem): Promise<void> {
     const request = store.put(item);
     request.onsuccess = () => resolve();
     request.onerror = () => {
-        console.error('Failed to add history item:', request.error);
-        reject(request.error);
-    }
+      console.error('Failed to add history item:', request.error);
+      reject(request.error);
+    };
   });
 }
 
@@ -159,7 +193,7 @@ export async function getHistory(): Promise<HistoryItem[]> {
     const store = transaction.objectStore(HISTORY_STORE);
     const request = store.getAll();
     request.onsuccess = () => {
-      resolve((request.result || []).sort((a, b) => b.timestamp - a.timestamp));
+      resolve(normalizeStoredHistoryItems(request.result));
     };
     request.onerror = () => {
       console.error('Failed to get history:', request.error);
@@ -169,29 +203,29 @@ export async function getHistory(): Promise<HistoryItem[]> {
 }
 
 export async function deleteHistoryItem(id: number): Promise<void> {
-    const db = await getDb();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(HISTORY_STORE, 'readwrite');
-        const store = transaction.objectStore(HISTORY_STORE);
-        const request = store.delete(id);
-        request.onsuccess = () => resolve();
-        request.onerror = () => {
-            console.error('Failed to delete history item:', request.error);
-            reject(request.error);
-        }
-    });
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(HISTORY_STORE, 'readwrite');
+    const store = transaction.objectStore(HISTORY_STORE);
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to delete history item:', request.error);
+      reject(request.error);
+    };
+  });
 }
 
 export async function clearHistory(): Promise<void> {
-    const db = await getDb();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(HISTORY_STORE, 'readwrite');
-        const store = transaction.objectStore(HISTORY_STORE);
-        const request = store.clear();
-        request.onsuccess = () => resolve();
-        request.onerror = () => {
-            console.error('Failed to clear history:', request.error);
-            reject(request.error);
-        }
-    });
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(HISTORY_STORE, 'readwrite');
+    const store = transaction.objectStore(HISTORY_STORE);
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to clear history:', request.error);
+      reject(request.error);
+    };
+  });
 }
