@@ -1,9 +1,10 @@
-import { NVIDIA_NIM_TRANSCRIPTIONS_PATH } from '../../constants';
-import { Language, type TranscriptionResult } from '../../types';
+import { NVIDIA_NIM_TRANSCRIPTIONS_PATH, NVIDIA_NIM_TRANSLATIONS_PATH } from '../../constants';
+import { Language, NvidiaNimTask, type TranscriptionResult } from '../../types';
 
 type NvidiaNimAsrConfig = {
   baseUrl: string;
   apiKey: string;
+  task?: NvidiaNimTask;
 };
 
 type NvidiaNimTranscriptionResponse = {
@@ -42,6 +43,14 @@ export const normalizeNvidiaNimBaseUrl = (baseUrl: string) => {
 };
 
 export const createNvidiaNimTranscriptionsUrl = (baseUrl: string) => {
+  return createNvidiaNimAudioEndpointUrl(baseUrl, NvidiaNimTask.TRANSCRIBE);
+};
+
+export const getNvidiaNimEndpointPath = (task: NvidiaNimTask | undefined) => {
+  return task === NvidiaNimTask.TRANSLATE ? NVIDIA_NIM_TRANSLATIONS_PATH : NVIDIA_NIM_TRANSCRIPTIONS_PATH;
+};
+
+export const createNvidiaNimAudioEndpointUrl = (baseUrl: string, task: NvidiaNimTask | undefined) => {
   const normalizedBaseUrl = normalizeNvidiaNimBaseUrl(baseUrl);
   if (!normalizedBaseUrl) {
     throw new Error(
@@ -49,7 +58,7 @@ export const createNvidiaNimTranscriptionsUrl = (baseUrl: string) => {
     );
   }
 
-  return `${normalizedBaseUrl}${NVIDIA_NIM_TRANSCRIPTIONS_PATH}`;
+  return `${normalizedBaseUrl}${getNvidiaNimEndpointPath(task)}`;
 };
 
 const getNvidiaNimLanguage = (language: Language) => {
@@ -60,9 +69,11 @@ const getNvidiaNimLanguage = (language: Language) => {
   return nvidiaNimLanguageMap[language] || language;
 };
 
-const createFormData = (audioFile: File, language: Language) => {
+const createFormData = (audioFile: File, language: Language, task: NvidiaNimTask) => {
   const formData = new FormData();
-  formData.append('language', getNvidiaNimLanguage(language));
+  if (task === NvidiaNimTask.TRANSCRIBE) {
+    formData.append('language', getNvidiaNimLanguage(language));
+  }
   formData.append('file', audioFile, audioFile.name || 'audio.wav');
   return formData;
 };
@@ -144,15 +155,16 @@ export const transcribeWithNvidiaNim = async (
   signal: AbortSignal,
 ): Promise<TranscriptionResult> => {
   const apiKey = config.apiKey.trim();
+  const task = config.task ?? NvidiaNimTask.TRANSCRIBE;
   const headers: Record<string, string> = {};
   if (apiKey) {
     headers.Authorization = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(createNvidiaNimTranscriptionsUrl(config.baseUrl), {
+  const response = await fetch(createNvidiaNimAudioEndpointUrl(config.baseUrl, task), {
     method: 'POST',
     headers,
-    body: createFormData(audioFile, language),
+    body: createFormData(audioFile, language, task),
     signal,
   });
 
@@ -172,6 +184,6 @@ export const transcribeWithNvidiaNim = async (
 
   return {
     transcription,
-    detectedLanguage: parseDetectedLanguage(result, language),
+    detectedLanguage: task === NvidiaNimTask.TRANSLATE ? '英文翻译' : parseDetectedLanguage(result, language),
   };
 };

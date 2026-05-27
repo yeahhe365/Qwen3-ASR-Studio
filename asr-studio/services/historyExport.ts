@@ -1,4 +1,9 @@
-import { compressionLevelDisplayNames, languageDisplayNames } from '../displayNames';
+import {
+  compressionLevelDisplayNames,
+  languageDisplayNames,
+  mainstreamAsrModelDisplayNames,
+  nvidiaNimTaskDisplayNames,
+} from '../displayNames';
 import type { HistoryItem } from '../types';
 import { downloadFile } from './downloadFile';
 import { createExportFileName } from './exportFileName';
@@ -20,6 +25,8 @@ export const createSerializableHistoryItems = (items: HistoryItem[]) => {
     compressionLevel: item.compressionLevel || null,
     trimSilence: item.trimSilence ?? null,
     enableLongAudioChunking: item.enableLongAudioChunking ?? null,
+    nvidiaNimTask: item.nvidiaNimTask ?? null,
+    mainstreamAsrModel: item.mainstreamAsrModel ?? null,
     segments: item.segments || [],
     audioUrl: item.audioUrl || null,
   }));
@@ -62,6 +69,22 @@ const formatCompressionLevel = (compressionLevel?: string | null) => {
   );
 };
 
+const formatNvidiaNimTask = (task?: string | null) => {
+  if (!task) {
+    return '';
+  }
+
+  return nvidiaNimTaskDisplayNames[task as keyof typeof nvidiaNimTaskDisplayNames] || task;
+};
+
+const formatMainstreamAsrModel = (model?: string | null) => {
+  if (!model) {
+    return '';
+  }
+
+  return mainstreamAsrModelDisplayNames[model as keyof typeof mainstreamAsrModelDisplayNames] || model;
+};
+
 const createMarkdownItem = (item: SerializableHistoryItem) => {
   const compressionLevel = formatCompressionLevel(item.compressionLevel);
   const metadata = [
@@ -73,6 +96,8 @@ const createMarkdownItem = (item: SerializableHistoryItem) => {
     compressionLevel ? `- 压缩：${compressionLevel}` : '',
     `- 静音裁剪：${formatBoolean(item.trimSilence)}`,
     `- 长音频切片：${formatBoolean(item.enableLongAudioChunking)}`,
+    item.nvidiaNimTask ? `- NVIDIA 任务：${formatNvidiaNimTask(item.nvidiaNimTask)}` : '',
+    item.mainstreamAsrModel ? `- 主流模型：${formatMainstreamAsrModel(item.mainstreamAsrModel)}` : '',
     item.segments.length ? `- 分段：${item.segments.length} 段` : '',
     item.audioUrl ? `- 音频 URL：${item.audioUrl}` : '',
   ].filter(Boolean);

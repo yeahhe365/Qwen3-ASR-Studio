@@ -3,7 +3,7 @@ import { afterEach, describe, test } from 'node:test';
 
 import { QWEN_ASR_API_URL } from '../constants.ts';
 import { transcribeAudio } from '../services/asrService.ts';
-import { AsrProvider, Language, type AsrProviderConfig } from '../types.ts';
+import { AsrProvider, Language, MainstreamAsrModel, NvidiaNimTask, type AsrProviderConfig } from '../types.ts';
 
 const originalFetch = globalThis.fetch;
 const originalFileReader = globalThis.FileReader;
@@ -29,6 +29,10 @@ const qwenConfig: AsrProviderConfig = {
   geminiApiKey: '',
   nvidiaNimBaseUrl: '',
   nvidiaNimApiKey: '',
+  nvidiaNimTask: NvidiaNimTask.TRANSCRIBE,
+  mainstreamAsrModel: MainstreamAsrModel.OPENAI_GPT_4O_TRANSCRIBE,
+  mainstreamAsrApiKey: '',
+  mainstreamAsrBaseUrl: '',
 };
 
 afterEach(() => {

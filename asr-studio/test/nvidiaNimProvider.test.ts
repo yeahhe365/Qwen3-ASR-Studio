@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
 
-import { NVIDIA_NIM_HTTP_BASE_URL_PLACEHOLDER, NVIDIA_NIM_TRANSCRIPTIONS_PATH } from '../constants.ts';
-import { createNvidiaNimTranscriptionsUrl, transcribeWithNvidiaNim } from '../services/providers/nvidiaNimProvider.ts';
-import { Language } from '../types.ts';
+import {
+  NVIDIA_NIM_HTTP_BASE_URL_PLACEHOLDER,
+  NVIDIA_NIM_TRANSCRIPTIONS_PATH,
+  NVIDIA_NIM_TRANSLATIONS_PATH,
+} from '../constants.ts';
+import {
+  createNvidiaNimAudioEndpointUrl,
+  createNvidiaNimTranscriptionsUrl,
+  transcribeWithNvidiaNim,
+} from '../services/providers/nvidiaNimProvider.ts';
+import { Language, NvidiaNimTask } from '../types.ts';
 
 type FetchCall = {
   input: RequestInfo | URL;
@@ -36,7 +44,7 @@ describe('transcribeWithNvidiaNim', () => {
       '上下文会被忽略',
       Language.AUTO,
       true,
-      { baseUrl: ' http://localhost:9000/ ', apiKey: ' nim-key ' },
+      { baseUrl: ' http://localhost:9000/ ', apiKey: ' nim-key ', task: NvidiaNimTask.TRANSCRIBE },
       new AbortController().signal,
     );
 
@@ -72,11 +80,39 @@ describe('transcribeWithNvidiaNim', () => {
       '',
       Language.CHINESE,
       false,
-      { baseUrl: 'http://nim.example.com', apiKey: '' },
+      { baseUrl: 'http://nim.example.com', apiKey: '', task: NvidiaNimTask.TRANSCRIBE },
       new AbortController().signal,
     );
 
     assert.equal(body?.get('language'), 'zh-CN');
+  });
+
+  test('routes translation mode to the translations endpoint', async () => {
+    const calls: FetchCall[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ input, init });
+      return new Response(JSON.stringify({ text: 'English translation.' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const file = new File(['audio'], 'meeting.wav', { type: 'audio/wav' });
+    const result = await transcribeWithNvidiaNim(
+      file,
+      '',
+      Language.CHINESE,
+      false,
+      { baseUrl: 'http://localhost:9000', apiKey: '', task: NvidiaNimTask.TRANSLATE },
+      new AbortController().signal,
+    );
+
+    assert.deepEqual(result, {
+      transcription: 'English translation.',
+      detectedLanguage: '英文翻译',
+    });
+    assert.equal(String(calls[0].input), `http://localhost:9000${NVIDIA_NIM_TRANSLATIONS_PATH}`);
+    assert.equal((calls[0].init?.body as FormData).get('language'), null);
   });
 
   test('surfaces API error details', async () => {
@@ -97,7 +133,7 @@ describe('transcribeWithNvidiaNim', () => {
           '',
           Language.AUTO,
           false,
-          { baseUrl: NVIDIA_NIM_HTTP_BASE_URL_PLACEHOLDER, apiKey: '' },
+          { baseUrl: NVIDIA_NIM_HTTP_BASE_URL_PLACEHOLDER, apiKey: '', task: NvidiaNimTask.TRANSCRIBE },
           new AbortController().signal,
         ),
       /model not ready/,
@@ -110,6 +146,10 @@ describe('createNvidiaNimTranscriptionsUrl', () => {
     assert.equal(
       createNvidiaNimTranscriptionsUrl('https://nim.example.com/'),
       `https://nim.example.com${NVIDIA_NIM_TRANSCRIPTIONS_PATH}`,
+    );
+    assert.equal(
+      createNvidiaNimAudioEndpointUrl('https://nim.example.com/', NvidiaNimTask.TRANSLATE),
+      `https://nim.example.com${NVIDIA_NIM_TRANSLATIONS_PATH}`,
     );
   });
 

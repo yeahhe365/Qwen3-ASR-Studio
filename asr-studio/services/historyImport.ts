@@ -1,4 +1,4 @@
-import { AsrProvider, CompressionLevel, Language, type HistoryItem } from '../types';
+import { AsrProvider, CompressionLevel, Language, MainstreamAsrModel, NvidiaNimTask, type HistoryItem } from '../types';
 import { normalizeHistorySegments } from './historySegments';
 import { getJsonBoolean, getJsonEnumValue, getJsonNumber, getJsonString, isJsonRecord } from './jsonValue';
 import { isValidHttpUrl } from './remoteAudioFile';
@@ -77,6 +77,10 @@ export const parseHistoryImportPayload = (
       const timestamp = getJsonNumber(record.timestamp) ?? getJsonNumber(record.createdAt) ?? Math.max(0, now - index);
       const provider = getJsonEnumValue(AsrProvider, record.provider) as AsrProvider | undefined;
       const language = getJsonEnumValue(Language, record.language) as Language | undefined;
+      const nvidiaNimTask = getJsonEnumValue(NvidiaNimTask, record.nvidiaNimTask) as NvidiaNimTask | undefined;
+      const mainstreamAsrModel = getJsonEnumValue(MainstreamAsrModel, record.mainstreamAsrModel) as
+        | MainstreamAsrModel
+        | undefined;
       const compressionLevel = getJsonEnumValue(CompressionLevel, record.compressionLevel) as
         | CompressionLevel
         | undefined;
@@ -96,6 +100,8 @@ export const parseHistoryImportPayload = (
         compressionLevel,
         trimSilence: getJsonBoolean(record.trimSilence),
         enableLongAudioChunking: getJsonBoolean(record.enableLongAudioChunking),
+        nvidiaNimTask,
+        mainstreamAsrModel,
       };
     })
     .filter((item): item is HistoryItem => Boolean(item))

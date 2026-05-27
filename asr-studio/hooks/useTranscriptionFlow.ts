@@ -40,13 +40,11 @@ type UpdateHistoryItem = (
       | 'compressionLevel'
       | 'trimSilence'
       | 'enableLongAudioChunking'
+      | 'nvidiaNimTask'
+      | 'mainstreamAsrModel'
     >
   >,
 ) => Promise<boolean>;
-
-type PipTranscriptionResult = TranscriptionResult & {
-  audioFile: File;
-};
 
 type UseTranscriptionFlowOptions = {
   context: string;
@@ -138,6 +136,8 @@ export function useTranscriptionFlow({
     compressionLevel,
     trimSilence,
     enableLongAudioChunking,
+    nvidiaNimTask: asrConfig.nvidiaNimTask,
+    mainstreamAsrModel: asrConfig.mainstreamAsrModel,
     notify,
     prependHistoryItem,
     updateHistoryItem,
@@ -600,30 +600,6 @@ export function useTranscriptionFlow({
     void transcribeNow(audioFile, true);
   }, [audioFile, isRecording, isRecordingBusy, transcribeNow]);
 
-  const handleTranscriptionResultFromPip = useCallback(
-    async (result: PipTranscriptionResult) => {
-      const nextSegments = normalizeSegments(result.transcription, result.segments);
-      setAudioFile(result.audioFile);
-      setTranscription(result.transcription);
-      setDetectedLanguage(result.detectedLanguage);
-      setSegments(nextSegments);
-      resetHistoryDraft();
-
-      if (!result.transcription) {
-        return;
-      }
-
-      notify('输入法模式识别成功', 'success');
-      const historyItem = createHistoryItem(result.audioFile, {
-        ...result,
-        segments: nextSegments,
-      });
-      const savedToHistory = await prependHistoryItem(historyItem);
-      markHistoryItemSaved(historyItem, savedToHistory);
-    },
-    [createHistoryItem, markHistoryItemSaved, notify, prependHistoryItem, resetHistoryDraft],
-  );
-
   const restoreHistoryItem = useCallback(
     (item: HistoryItem) => {
       const restoredAudioFile = item.audioUrl ? createRemoteAudioFile(item.audioUrl) : item.audioFile || null;
@@ -684,7 +660,6 @@ export function useTranscriptionFlow({
     clearQueue,
     handleTranscribe,
     handleKeyboardRecordingRelease,
-    handleTranscriptionResultFromPip,
     restoreHistoryItem,
   };
 }

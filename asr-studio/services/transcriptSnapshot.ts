@@ -1,5 +1,12 @@
-import type { AsrProvider, CompressionLevel, HistoryItem, Language } from '../types';
-import { isAsrProvider, isCompressionLevel, isLanguage } from './typeGuards';
+import {
+  AsrProvider,
+  type CompressionLevel,
+  type HistoryItem,
+  type Language,
+  type MainstreamAsrModel,
+  type NvidiaNimTask,
+} from '../types';
+import { isAsrProvider, isCompressionLevel, isLanguage, isMainstreamAsrModel, isNvidiaNimTask } from './typeGuards';
 
 export type TranscriptSaveSnapshotInput = {
   transcription: string;
@@ -11,12 +18,21 @@ export type TranscriptSaveSnapshotInput = {
   compressionLevel?: CompressionLevel;
   trimSilence?: boolean;
   enableLongAudioChunking?: boolean;
+  nvidiaNimTask?: NvidiaNimTask;
+  mainstreamAsrModel?: MainstreamAsrModel;
 };
 
 export type TranscriptSaveSnapshotDefaults = Required<
   Pick<
     TranscriptSaveSnapshotInput,
-    'provider' | 'language' | 'enableItn' | 'compressionLevel' | 'trimSilence' | 'enableLongAudioChunking'
+    | 'provider'
+    | 'language'
+    | 'enableItn'
+    | 'compressionLevel'
+    | 'trimSilence'
+    | 'enableLongAudioChunking'
+    | 'nvidiaNimTask'
+    | 'mainstreamAsrModel'
   >
 >;
 
@@ -31,6 +47,8 @@ export const createTranscriptSaveSnapshot = (input: TranscriptSaveSnapshotInput)
     compressionLevel: input.compressionLevel ?? null,
     trimSilence: input.trimSilence ?? null,
     enableLongAudioChunking: input.enableLongAudioChunking ?? null,
+    nvidiaNimTask: input.provider === AsrProvider.NVIDIA_NIM ? (input.nvidiaNimTask ?? null) : null,
+    mainstreamAsrModel: input.provider === AsrProvider.MAINSTREAM ? (input.mainstreamAsrModel ?? null) : null,
   });
 };
 
@@ -52,5 +70,9 @@ export const createRestoredTranscriptSaveSnapshot = (item: HistoryItem, defaults
       typeof item.enableLongAudioChunking === 'boolean'
         ? item.enableLongAudioChunking
         : defaults.enableLongAudioChunking,
+    nvidiaNimTask: isNvidiaNimTask(item.nvidiaNimTask) ? item.nvidiaNimTask : defaults.nvidiaNimTask,
+    mainstreamAsrModel: isMainstreamAsrModel(item.mainstreamAsrModel)
+      ? item.mainstreamAsrModel
+      : defaults.mainstreamAsrModel,
   });
 };

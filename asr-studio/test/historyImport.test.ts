@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { parseHistoryImportJson, parseHistoryImportPayload } from '../services/historyImport.ts';
-import { AsrProvider, CompressionLevel, Language } from '../types.ts';
+import { AsrProvider, CompressionLevel, Language, MainstreamAsrModel, NvidiaNimTask } from '../types.ts';
 
 describe('parseHistoryImportJson', () => {
   test('imports exported history records with metadata and regenerated ids', () => {
@@ -21,6 +21,7 @@ describe('parseHistoryImportJson', () => {
           compressionLevel: CompressionLevel.MEDIUM,
           trimSilence: true,
           enableLongAudioChunking: true,
+          nvidiaNimTask: NvidiaNimTask.TRANSLATE,
           audioUrl: 'https://example.com/meeting.wav',
           segments: [
             { id: 'a', text: '第一段', startTime: 0, endTime: 1.2 },
@@ -40,6 +41,7 @@ describe('parseHistoryImportJson', () => {
     assert.equal(importedItems[0].compressionLevel, CompressionLevel.MEDIUM);
     assert.equal(importedItems[0].trimSilence, true);
     assert.equal(importedItems[0].enableLongAudioChunking, true);
+    assert.equal(importedItems[0].nvidiaNimTask, NvidiaNimTask.TRANSLATE);
     assert.equal(importedItems[0].audioUrl, 'https://example.com/meeting.wav');
     assert.deepEqual(
       importedItems[0].segments?.map((segment) => segment.text),

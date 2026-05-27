@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { diagnoseProviderConfig, getWorstDiagnosticStatus, isValidHttpUrl } from '../services/providerDiagnostics.ts';
-import { AsrProvider, type AsrProviderConfig } from '../types.ts';
+import { AsrProvider, MainstreamAsrModel, NvidiaNimTask, type AsrProviderConfig } from '../types.ts';
 
 const baseConfig: AsrProviderConfig = {
   provider: AsrProvider.NVIDIA_NIM,
@@ -12,6 +12,10 @@ const baseConfig: AsrProviderConfig = {
   geminiApiKey: '',
   nvidiaNimBaseUrl: '',
   nvidiaNimApiKey: '',
+  nvidiaNimTask: NvidiaNimTask.TRANSCRIBE,
+  mainstreamAsrModel: MainstreamAsrModel.OPENAI_GPT_4O_TRANSCRIBE,
+  mainstreamAsrApiKey: '',
+  mainstreamAsrBaseUrl: '',
 };
 
 describe('provider diagnostics', () => {

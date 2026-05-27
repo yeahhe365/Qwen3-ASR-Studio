@@ -4,13 +4,14 @@ This directory contains the Vite + React frontend for ASR Studio.
 
 ## Current Capabilities
 
-- Qwen, Doubao recording file standard 2.0, Gemini, and NVIDIA NIM provider adapters.
+- Qwen, Doubao recording file standard 2.0, Gemini, NVIDIA NIM, and mainstream ASR model library provider adapters.
 - Local upload, batch upload queue, microphone recording, and Doubao remote URL input.
 - Browser-side compression, silence trimming, long-audio chunking, and provider-compatible audio conversion.
 - Waveform preview with playback controls, clipping, download, and remote URL handling.
 - Editable transcript workspace with text/segment views, search, save-to-history, and TXT/Markdown/JSON/SRT/VTT export.
+- Benchmark workspace with CSV/JSONL manifest import, public dataset catalog templates, scoring profiles, local audio matching, remote URL samples, multi-model matrix runs, batch controls, robustness perturbations, WER/CER scoring, streaming diagnostics, timestamp quality, diarization metrics, latency/RTF/cost metrics, keyword/name/term accuracy, model leaderboard, dataset breakdowns, error heatmap, paired significance, capability radar, per-result diff, human review annotations, Markdown/HTML reports, IndexedDB experiment history, experiment comparison, local regression plans, and reproducible run snapshots.
 - Local history search, provider/language filters, batch delete, JSON/Markdown export, and JSON import.
-- Settings for credentials, recognition options, browser audio constraints, provider diagnostics, storage usage, cache cleanup, and PWA install.
+- Settings for credentials, recognition options, browser audio constraints, provider diagnostics, provider capability matrix, storage usage, cache cleanup, and PWA install.
 
 ## Run Locally
 
@@ -54,10 +55,13 @@ docker run -d --name asr-studio -p 8081:80 asr-studio
 
 ## API Configuration
 
-The app calls the selected ASR provider directly. Configure Qwen, Doubao, Gemini, or NVIDIA NIM credentials from the in-app settings panel.
+The app calls the selected ASR provider directly. Configure Qwen, Doubao, Gemini, NVIDIA NIM, or mainstream model library credentials from the in-app settings panel.
 
 - Doubao standard 2.0 currently submits local files as base64 `audio.data`; a server-accessible HTTP(S) `audio.url` can still be used from the optional URL input.
+- Doubao standard 2.0 requests utterance details and maps returned utterances into timestamped transcript segments when available.
 - NVIDIA NIM requires a self-hosted HTTP service or proxy base URL; the hosted NVIDIA Whisper Large v3 endpoint is gRPC/Riva and is not directly callable from the browser.
+- NVIDIA NIM can call either `/v1/audio/transcriptions` for transcription or `/v1/audio/translations` for English translation, depending on the selected task mode.
+- The mainstream model library currently includes OpenAI GPT-4o/Whisper, Groq Whisper, Deepgram Nova-3, AssemblyAI Universal, ElevenLabs Scribe, Mistral Voxtral, and Fireworks Whisper adapters. OpenAI-compatible models use multipart `/audio/transcriptions`; Deepgram, AssemblyAI, and ElevenLabs use their native REST APIs.
 
 ### Doubao Realtime ASR
 

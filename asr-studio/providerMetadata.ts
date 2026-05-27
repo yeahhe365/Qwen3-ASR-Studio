@@ -1,5 +1,6 @@
 // Compatibility layer: prefer importing provider metadata helpers from services/providerRegistry in new code.
 export {
+  asrProviderCapabilityMatrix,
   asrProviderMenuOptions,
   asrProviderMetadata,
   asrProviderOrder,

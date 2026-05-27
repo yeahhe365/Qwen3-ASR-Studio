@@ -1,11 +1,13 @@
 import type { HistoryItem, TranscriptionResult } from '../types';
+import type { BenchmarkExperimentRecord } from './benchmarkTypes';
 import { normalizeStoredHistoryItems } from './historyStorage';
 
 const DB_NAME = 'ASR-Cache';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const TRANSCRIPTIONS_STORE = 'transcriptions';
 const RECORDINGS_STORE = 'recordings';
 const HISTORY_STORE = 'history';
+const BENCHMARK_EXPERIMENTS_STORE = 'benchmark-experiments';
 const RECORDING_KEY = 'last-recording';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -34,6 +36,9 @@ function getDb(): Promise<IDBDatabase> {
         }
         if (!db.objectStoreNames.contains(HISTORY_STORE)) {
           db.createObjectStore(HISTORY_STORE, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(BENCHMARK_EXPERIMENTS_STORE)) {
+          db.createObjectStore(BENCHMARK_EXPERIMENTS_STORE, { keyPath: 'id' });
         }
         if (db.objectStoreNames.contains('notes')) {
           db.deleteObjectStore('notes');
@@ -225,6 +230,72 @@ export async function clearHistory(): Promise<void> {
     request.onsuccess = () => resolve();
     request.onerror = () => {
       console.error('Failed to clear history:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+export async function addBenchmarkExperiment(item: BenchmarkExperimentRecord): Promise<void> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(BENCHMARK_EXPERIMENTS_STORE, 'readwrite');
+    const store = transaction.objectStore(BENCHMARK_EXPERIMENTS_STORE);
+    const request = store.put(item);
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to add benchmark experiment:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+export async function getBenchmarkExperiments(): Promise<BenchmarkExperimentRecord[]> {
+  let db: IDBDatabase;
+  try {
+    db = await getDb();
+  } catch (error) {
+    console.error('Failed to open benchmark experiment store:', error);
+    return [];
+  }
+
+  return new Promise((resolve) => {
+    const transaction = db.transaction(BENCHMARK_EXPERIMENTS_STORE, 'readonly');
+    const store = transaction.objectStore(BENCHMARK_EXPERIMENTS_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const records = (request.result || []) as BenchmarkExperimentRecord[];
+      resolve(records.sort((left, right) => right.createdAt - left.createdAt));
+    };
+    request.onerror = () => {
+      console.error('Failed to get benchmark experiments:', request.error);
+      resolve([]);
+    };
+  });
+}
+
+export async function deleteBenchmarkExperiment(id: number): Promise<void> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(BENCHMARK_EXPERIMENTS_STORE, 'readwrite');
+    const store = transaction.objectStore(BENCHMARK_EXPERIMENTS_STORE);
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to delete benchmark experiment:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+export async function clearBenchmarkExperiments(): Promise<void> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(BENCHMARK_EXPERIMENTS_STORE, 'readwrite');
+    const store = transaction.objectStore(BENCHMARK_EXPERIMENTS_STORE);
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Failed to clear benchmark experiments:', request.error);
       reject(request.error);
     };
   });

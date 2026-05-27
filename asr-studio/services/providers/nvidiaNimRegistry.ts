@@ -1,13 +1,8 @@
-import {
-  NVIDIA_HOSTED_GRPC_SERVER,
-  NVIDIA_NIM_ASR_MODEL,
-  NVIDIA_NIM_TRANSCRIPTIONS_PATH,
-  NVIDIA_WHISPER_LARGE_V3_FUNCTION_ID,
-} from '../../constants';
-import { AsrProvider } from '../../types';
+import { NVIDIA_HOSTED_GRPC_SERVER, NVIDIA_NIM_ASR_MODEL, NVIDIA_WHISPER_LARGE_V3_FUNCTION_ID } from '../../constants';
+import { AsrProvider, NvidiaNimTask } from '../../types';
 import { isValidHttpUrl } from '../remoteAudioFile';
 import type { ProviderRegistryEntry } from '../providerRegistryTypes';
-import { normalizeNvidiaNimBaseUrl, transcribeWithNvidiaNim } from './nvidiaNimProvider';
+import { getNvidiaNimEndpointPath, normalizeNvidiaNimBaseUrl, transcribeWithNvidiaNim } from './nvidiaNimProvider';
 
 export const nvidiaNimProviderEntry: ProviderRegistryEntry = {
   provider: AsrProvider.NVIDIA_NIM,
@@ -22,26 +17,34 @@ export const nvidiaNimProviderEntry: ProviderRegistryEntry = {
     capabilities: [
       { label: '输入', value: 'HTTP multipart 文件' },
       { label: '部署', value: '自托管 NIM / 后端代理' },
-      { label: '模型', value: 'Whisper Large v3' },
+      { label: '任务', value: '转写 / 英文翻译' },
       { label: '时间戳', value: '取决于代理响应' },
     ],
   },
   getSummaryDetails: (config) => {
     const trimmedBaseUrl = config.nvidiaNimBaseUrl.trim();
+    const endpointPath = getNvidiaNimEndpointPath(config.nvidiaNimTask);
     return trimmedBaseUrl
-      ? `${NVIDIA_NIM_ASR_MODEL} · ${trimmedBaseUrl}${NVIDIA_NIM_TRANSCRIPTIONS_PATH}`
+      ? `${NVIDIA_NIM_ASR_MODEL} · ${trimmedBaseUrl}${endpointPath}`
       : `${NVIDIA_NIM_ASR_MODEL} · Hosted gRPC ${NVIDIA_HOSTED_GRPC_SERVER} · function-id ${NVIDIA_WHISPER_LARGE_V3_FUNCTION_ID}`;
   },
   diagnose: (config) => {
     const normalizedBaseUrl = normalizeNvidiaNimBaseUrl(config.nvidiaNimBaseUrl);
     const hasValidBaseUrl = Boolean(normalizedBaseUrl && isValidHttpUrl(normalizedBaseUrl));
+    const endpointPath = getNvidiaNimEndpointPath(config.nvidiaNimTask);
     return [
       {
         label: 'HTTP Base URL',
         status: hasValidBaseUrl ? 'ok' : 'error',
         detail: hasValidBaseUrl
-          ? `将调用 ${normalizedBaseUrl}${NVIDIA_NIM_TRANSCRIPTIONS_PATH}。`
+          ? `将调用 ${normalizedBaseUrl}${endpointPath}。`
           : '需要填写自托管 NIM 或后端代理的 HTTP Base URL。',
+      },
+      {
+        label: '任务模式',
+        status: 'ok',
+        detail:
+          config.nvidiaNimTask === NvidiaNimTask.TRANSLATE ? '将音频翻译为英文文本。' : '将音频转写为原语言文本。',
       },
       {
         label: 'API Key',
@@ -70,7 +73,7 @@ export const nvidiaNimProviderEntry: ProviderRegistryEntry = {
       context,
       language,
       enableItn,
-      { baseUrl: config.nvidiaNimBaseUrl, apiKey: config.nvidiaNimApiKey },
+      { baseUrl: config.nvidiaNimBaseUrl, apiKey: config.nvidiaNimApiKey, task: config.nvidiaNimTask },
       signal,
     ),
 };

@@ -1,5 +1,5 @@
 import { DOUBAO_ASR_MODEL, DOUBAO_ASR_QUERY_URL, DOUBAO_ASR_RESOURCE_ID, DOUBAO_ASR_SUBMIT_URL } from '../../constants';
-import { Language, type TranscriptionResult } from '../../types';
+import { Language, type TranscriptionResult, type TranscriptionSegment } from '../../types';
 import { createRequestId, getClientUid } from '../clientIdentity';
 import { fileToBase64DataUrl, getFileExtension, stripDataUrlPrefix } from '../fileUtils';
 import { getAudioSourceUrl } from '../remoteAudioFile';
@@ -12,9 +12,23 @@ type DoubaoAsrConfig = {
 type DoubaoAsrResponse = {
   result?: {
     text?: string;
+    language?: string;
+    utterances?: DoubaoUtterance[];
   };
   message?: string;
   error?: string;
+};
+
+type DoubaoUtterance = {
+  text?: string;
+  start_time?: number | string;
+  end_time?: number | string;
+  startTime?: number | string;
+  endTime?: number | string;
+  speaker?: number | string;
+  speaker_id?: number | string;
+  speakerId?: number | string;
+  confidence?: number | string;
 };
 
 type DoubaoAudioFormat = 'raw' | 'wav' | 'mp3' | 'ogg';
@@ -94,6 +108,7 @@ const createDoubaoRequestBody = (
       model_name: DOUBAO_ASR_MODEL,
       enable_itn: enableItn,
       enable_punc: true,
+      show_utterances: true,
     },
   };
 };
@@ -147,6 +162,72 @@ const getDoubaoStatus = (response: Response) => ({
 
 const createAbortError = () => new DOMException('Aborted', 'AbortError');
 
+const parseFiniteNumber = (value: number | string | undefined) => {
+  if (value === undefined || value === '') {
+    return undefined;
+  }
+
+  const parsedValue = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : undefined;
+};
+
+const parseDoubaoMilliseconds = (value: number | string | undefined) => {
+  const parsedValue = parseFiniteNumber(value);
+  return parsedValue === undefined ? undefined : Math.max(0, parsedValue / 1000);
+};
+
+const parseDoubaoSeconds = (value: number | string | undefined) => {
+  const parsedValue = parseFiniteNumber(value);
+  return parsedValue === undefined ? undefined : Math.max(0, parsedValue);
+};
+
+const getDoubaoSpeaker = (utterance: DoubaoUtterance) => {
+  const speaker = utterance.speaker ?? utterance.speaker_id ?? utterance.speakerId;
+  return speaker === undefined || speaker === '' ? undefined : String(speaker);
+};
+
+const parseDoubaoUtteranceSegments = (utterances?: DoubaoUtterance[]): TranscriptionSegment[] => {
+  if (!utterances?.length) {
+    return [];
+  }
+
+  return utterances
+    .map((utterance, index): TranscriptionSegment | null => {
+      const text = utterance.text?.trim();
+      if (!text) {
+        return null;
+      }
+
+      return {
+        id: `utterance-${index + 1}`,
+        text,
+        startTime:
+          utterance.start_time !== undefined
+            ? parseDoubaoMilliseconds(utterance.start_time)
+            : parseDoubaoSeconds(utterance.startTime),
+        endTime:
+          utterance.end_time !== undefined
+            ? parseDoubaoMilliseconds(utterance.end_time)
+            : parseDoubaoSeconds(utterance.endTime),
+        speaker: getDoubaoSpeaker(utterance),
+        confidence: parseFiniteNumber(utterance.confidence),
+      };
+    })
+    .filter((segment): segment is TranscriptionSegment => Boolean(segment));
+};
+
+const getDoubaoTranscription = (result: DoubaoAsrResponse | null) => {
+  const text = result?.result?.text?.trim();
+  if (text) {
+    return text;
+  }
+
+  return parseDoubaoUtteranceSegments(result?.result?.utterances)
+    .map((segment) => segment.text)
+    .join('\n')
+    .trim();
+};
+
 const parseDoubaoResponse = (response: Response, result: DoubaoAsrResponse | null): TranscriptionResult => {
   const { statusCode, apiMessage, logId } = getDoubaoStatus(response);
 
@@ -155,14 +236,17 @@ const parseDoubaoResponse = (response: Response, result: DoubaoAsrResponse | nul
     throw new Error(`豆包 API 请求失败 (${statusCode})：${detail}${logId ? `，LogId: ${logId}` : ''}`);
   }
 
-  const transcription = result?.result?.text?.trim();
+  const transcription = getDoubaoTranscription(result);
   if (!transcription) {
     throw new Error(`豆包 API 返回了空识别结果${logId ? `，LogId: ${logId}` : ''}。`);
   }
 
+  const segments = parseDoubaoUtteranceSegments(result?.result?.utterances);
+
   return {
     transcription,
-    detectedLanguage: '自动识别',
+    detectedLanguage: result?.result?.language || '自动识别',
+    ...(segments.length ? { segments } : {}),
   };
 };
 

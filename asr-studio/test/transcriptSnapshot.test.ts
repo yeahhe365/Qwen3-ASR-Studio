@@ -6,7 +6,14 @@ import {
   createTranscriptSaveSnapshot,
   isTranscriptSaveSnapshotDirty,
 } from '../services/transcriptSnapshot.ts';
-import { AsrProvider, CompressionLevel, Language, type HistoryItem } from '../types.ts';
+import {
+  AsrProvider,
+  CompressionLevel,
+  Language,
+  MainstreamAsrModel,
+  NvidiaNimTask,
+  type HistoryItem,
+} from '../types.ts';
 
 const baseSnapshotInput = {
   transcription: 'hello world',
@@ -18,6 +25,8 @@ const baseSnapshotInput = {
   compressionLevel: CompressionLevel.MEDIUM,
   trimSilence: true,
   enableLongAudioChunking: true,
+  nvidiaNimTask: NvidiaNimTask.TRANSCRIBE,
+  mainstreamAsrModel: MainstreamAsrModel.OPENAI_GPT_4O_TRANSCRIBE,
 };
 
 describe('transcript save snapshots', () => {
@@ -49,6 +58,32 @@ describe('transcript save snapshots', () => {
       ),
       true,
     );
+    assert.equal(
+      isTranscriptSaveSnapshotDirty(
+        {
+          ...baseSnapshotInput,
+          nvidiaNimTask: NvidiaNimTask.TRANSLATE,
+        },
+        savedSnapshot,
+      ),
+      false,
+    );
+
+    const savedNvidiaSnapshot = createTranscriptSaveSnapshot({
+      ...baseSnapshotInput,
+      provider: AsrProvider.NVIDIA_NIM,
+    });
+    assert.equal(
+      isTranscriptSaveSnapshotDirty(
+        {
+          ...baseSnapshotInput,
+          provider: AsrProvider.NVIDIA_NIM,
+          nvidiaNimTask: NvidiaNimTask.TRANSLATE,
+        },
+        savedNvidiaSnapshot,
+      ),
+      true,
+    );
   });
 
   test('does not show dirty state for empty transcripts', () => {
@@ -76,6 +111,7 @@ describe('transcript save snapshots', () => {
       provider: 'legacy-provider' as AsrProvider,
       language: 'legacy-language' as Language,
       compressionLevel: 'legacy-compression' as CompressionLevel,
+      nvidiaNimTask: 'legacy-task' as NvidiaNimTask,
       enableItn: baseSnapshotInput.enableItn,
       trimSilence: baseSnapshotInput.trimSilence,
       enableLongAudioChunking: baseSnapshotInput.enableLongAudioChunking,
@@ -88,6 +124,8 @@ describe('transcript save snapshots', () => {
       compressionLevel: baseSnapshotInput.compressionLevel,
       trimSilence: baseSnapshotInput.trimSilence,
       enableLongAudioChunking: baseSnapshotInput.enableLongAudioChunking,
+      nvidiaNimTask: baseSnapshotInput.nvidiaNimTask,
+      mainstreamAsrModel: baseSnapshotInput.mainstreamAsrModel,
     });
 
     assert.equal(isTranscriptSaveSnapshotDirty(baseSnapshotInput, restoredSnapshot), false);

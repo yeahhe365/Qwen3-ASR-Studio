@@ -3,7 +3,7 @@ import { describe, test } from 'node:test';
 
 import { getProviderReadinessError } from '../services/providerReadiness.ts';
 import { createRemoteAudioFile } from '../services/remoteAudioFile.ts';
-import { AsrProvider, type AsrProviderConfig } from '../types.ts';
+import { AsrProvider, MainstreamAsrModel, NvidiaNimTask, type AsrProviderConfig } from '../types.ts';
 
 const createConfig = (patch: Partial<AsrProviderConfig> = {}): AsrProviderConfig => ({
   provider: AsrProvider.QWEN,
@@ -13,6 +13,10 @@ const createConfig = (patch: Partial<AsrProviderConfig> = {}): AsrProviderConfig
   geminiApiKey: 'gemini-key',
   nvidiaNimBaseUrl: 'http://localhost:9000',
   nvidiaNimApiKey: '',
+  nvidiaNimTask: NvidiaNimTask.TRANSCRIBE,
+  mainstreamAsrModel: MainstreamAsrModel.OPENAI_GPT_4O_TRANSCRIBE,
+  mainstreamAsrApiKey: '',
+  mainstreamAsrBaseUrl: '',
   ...patch,
 });
 
@@ -35,12 +39,23 @@ describe('getProviderReadinessError', () => {
     );
   });
 
-  test('limits remote audio URLs to Doubao standard 2.0', () => {
+  test('limits remote audio URLs to providers that accept URLs', () => {
     assert.match(
       getProviderReadinessError(createConfig({ provider: AsrProvider.QWEN }), remoteAudio) || '',
-      /远程音频 URL 仅支持豆包/,
+      /不支持远程音频 URL/,
     );
     assert.equal(getProviderReadinessError(createConfig({ provider: AsrProvider.DOUBAO }), remoteAudio), null);
+    assert.equal(
+      getProviderReadinessError(
+        createConfig({
+          provider: AsrProvider.MAINSTREAM,
+          mainstreamAsrApiKey: 'assemblyai-key',
+          mainstreamAsrModel: MainstreamAsrModel.ASSEMBLYAI_UNIVERSAL_3_PRO,
+        }),
+        remoteAudio,
+      ),
+      null,
+    );
   });
 
   test('allows local audio for Doubao standard 2.0 base64 submission', () => {

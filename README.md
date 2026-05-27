@@ -4,7 +4,7 @@
   <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
-一个功能丰富的网页应用，旨在为 Qwen、豆包、Gemini、NVIDIA NIM 等 ASR / 多模态语音模型提供一个强大、高效且用户友好的操作界面。无论您是需要转录会议记录、整理语音内容，还是进行任何形式的语音转文本工作，本工具都能为您提供流畅的体验。
+一个功能丰富的网页应用，旨在为 Qwen、豆包、Gemini、NVIDIA NIM 以及 OpenAI、Groq、Deepgram、AssemblyAI、ElevenLabs、Mistral、Fireworks 等主流 ASR / 多模态语音模型提供一个强大、高效且用户友好的操作界面。无论您是需要转录会议记录、整理语音内容，还是进行任何形式的语音转文本工作，本工具都能为您提供流畅的体验。
 
 **[➡️ 访问在线应用（历史部署域名）](https://qwen3-asr-studio.pages.dev/)**
 
@@ -25,7 +25,7 @@
   - **远程 URL**: 豆包录音文件识别标准版 2.0 支持公网音频 URL；其他 Provider 会提示改用本地文件。
 
 - **高效的转录核心**:
-  - **多厂商 ASR 驱动**: 支持 Qwen 官方 ASR API、豆包录音文件识别标准版 2.0、Gemini 音频理解接口与 NVIDIA NIM，并为后续厂商扩展保留 provider 结构。
+  - **多厂商 ASR 驱动**: 支持 Qwen 官方 ASR API、豆包录音文件识别标准版 2.0、Gemini 音频理解接口、NVIDIA NIM，以及主流模型库（OpenAI GPT-4o/Whisper、Groq Whisper、Deepgram Nova-3、AssemblyAI Universal、ElevenLabs Scribe、Mistral Voxtral、Fireworks Whisper）。
   - **上下文提示**: 可通过提供特定术语、人名或专业词汇作为上下文，显著提升识别的准确率。
   - **多语言支持**: 支持中文、英语、日语等多种语言的识别，并能自动检测语种。
   - **反向文本标准化 (ITN)**: 可选功能，能将“一月五号”这样的口语化表达转换为“1月5日”等书面形式。
@@ -34,9 +34,15 @@
   - **一键录音 (按住说话)**: 在非输入状态下，按住`空格键`即可开始录音，松开后自动停止并开始识别，操作如对讲机般便捷。
   - **音频预处理**: 在浏览器内支持压缩、首尾静音裁剪、长音频切片与 Provider 兼容格式转换。
   - **音频检查**: 内置波形预览、倍速播放、循环、静音、快进快退、剪辑保存与下载。
-  - **画中画模式 (输入法模式)**: 独创的画中画（Picture-in-Picture）功能，可将录音和识别窗口悬浮在任何应用之上，让您能直接将识别结果“说”进任何文本框，实现真正的“语音输入法”。
-
 - **强大的工作流与生产力工具**:
+  - **Benchmark 模型测试台**: 支持导入 CSV / JSONL 题库 manifest，匹配本地音频或远程音频 URL，选择多个模型后一键运行“模型 × 样本”矩阵评测。
+  - **长期实验管理**: Benchmark 每次完成后会保存到 IndexedDB，记录题库版本、模型配置、评分 profile、运行控制、结果矩阵、排行榜、错误热力图与数据集质量检查，并支持历史实验载入、删除和两次实验对比。
+  - **公开题库目录与评分档**: 内置 LibriSpeech、AISHELL-1、FLEURS、Common Voice、Earnings-22、AMI、CHiME manifest 模板和下载/许可信息；提供 OpenASR-compatible、中文 CER 优先、标点敏感、ITN 敏感、关键词/术语测试等评分 profile。
+  - **标准化评测指标**: Benchmark 结果包含 WER、CER、S/D/I 错误统计、延迟、RTF、成本估算、关键词召回、人名准确率、领域术语准确率、流式诊断、时间戳质量与说话人分离指标。
+  - **排行榜与错误分析**: 按模型聚合平均 WER/CER、P50/P95 延迟、失败率与成本，并按语言、domain、噪声、说话人、口音、标签、长短音频等题库维度拆分；提供错误热力图、bootstrap 显著性比较和模型能力雷达。
+  - **鲁棒性与回归**: 浏览器端可生成加噪、混响、变速、音量、压缩失真、电话带宽、背景音乐扰动样本；支持并发数、速率限制、失败重试、预算上限、暂停/恢复和本地定时回归计划。
+  - **报告与人工复核**: 支持一键导出 JSON / Markdown / HTML Benchmark 报告，并可在单条 diff 中保存人工修正 reference、错误类型和复核备注。
+  - **可复现实验快照**: 每条 Benchmark 结果记录 Provider 配置快照、模型版本、上下文、语言、ITN、预处理参数、音频 hash / 来源与缓存 key。
   - **可编辑转写结果**: 支持文本/分段视图、搜索匹配、修改后回存历史记录。
   - **多格式导出**: 单条结果可导出 TXT、Markdown、JSON、SRT、VTT；历史记录可导出 JSON 或 Markdown。
   - **历史记录**: 自动保存每一次的转录结果，支持搜索、Provider/语言筛选、批量删除、批量导出、JSON 导入与恢复。
@@ -53,7 +59,7 @@
 
 - **前端框架**: [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - **UI 样式**: [Tailwind CSS](https://tailwindcss.com/)
-- **ASR 接口**: Qwen 官方 OpenAI 兼容接口（`qwen3-asr-flash`）、豆包录音文件识别标准版 2.0（`bigmodel`）、Gemini API（`gemini-3.5-flash`）、NVIDIA NIM（`whisper-large-v3`）
+- **ASR 接口**: Qwen 官方 OpenAI 兼容接口（`qwen3-asr-flash`）、豆包录音文件识别标准版 2.0（`bigmodel`）、Gemini API（`gemini-3.5-flash`）、NVIDIA NIM（`whisper-large-v3`）、主流 ASR 模型库（OpenAI-compatible `/audio/transcriptions` + Deepgram / AssemblyAI / ElevenLabs 原生 REST API）
 - **客户端技术**:
   - **Web Audio API**: 用于音频录制、处理和可视化。
   - **WaveSurfer.js**: 用于音频波形预览、播放控制和片段剪辑。
@@ -148,8 +154,9 @@ GET /healthz
 ## 🔐 Provider 使用说明
 
 - **Qwen / Gemini**: 使用浏览器内联音频请求，文件过大时请先压缩、裁剪或切片。
-- **豆包标准版 2.0**: 需要公网可访问的音频 URL，本地文件和录音不会直接提交。
+- **豆包标准版 2.0**: 本地文件和录音会按 `audio.data` 提交；也可使用公网可访问的音频 URL。
 - **NVIDIA NIM**: NVIDIA 托管 Whisper Large v3 是 gRPC/Riva 服务，浏览器不能直接调用；请填写自托管 NIM 容器或后端代理的 HTTP Base URL。
+- **主流模型库**: 在设置中选择具体模型并填写对应厂商 API Key；Base URL 留空使用官方端点，填写后可走兼容代理或自托管网关。远程 URL 当前支持豆包和 AssemblyAI，其他主流模型使用本地文件上传。
 
 ## ✅ 开发验证
 

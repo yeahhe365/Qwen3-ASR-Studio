@@ -1,5 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import type { AsrProvider, CompressionLevel, HistoryItem, Language, Notification, TranscriptionResult } from '../types';
+import { AsrProvider } from '../types';
+import type {
+  CompressionLevel,
+  HistoryItem,
+  Language,
+  MainstreamAsrModel,
+  NvidiaNimTask,
+  Notification,
+  TranscriptionResult,
+} from '../types';
 import {
   createRestoredTranscriptSaveSnapshot,
   createTranscriptSaveSnapshot,
@@ -25,6 +34,8 @@ type UpdateHistoryItem = (
       | 'compressionLevel'
       | 'trimSilence'
       | 'enableLongAudioChunking'
+      | 'nvidiaNimTask'
+      | 'mainstreamAsrModel'
     >
   >,
 ) => Promise<boolean>;
@@ -37,6 +48,8 @@ type TranscriptHistorySettings = {
   compressionLevel: CompressionLevel;
   trimSilence: boolean;
   enableLongAudioChunking: boolean;
+  nvidiaNimTask: NvidiaNimTask;
+  mainstreamAsrModel: MainstreamAsrModel;
 };
 
 type UseTranscriptHistoryDraftOptions = TranscriptHistorySettings & {
@@ -71,6 +84,8 @@ const createHistoryPatch = (
   compressionLevel: settings.compressionLevel,
   trimSilence: settings.trimSilence,
   enableLongAudioChunking: settings.enableLongAudioChunking,
+  nvidiaNimTask: settings.provider === AsrProvider.NVIDIA_NIM ? settings.nvidiaNimTask : undefined,
+  mainstreamAsrModel: settings.provider === AsrProvider.MAINSTREAM ? settings.mainstreamAsrModel : undefined,
 });
 
 export function useTranscriptHistoryDraft({
@@ -81,6 +96,8 @@ export function useTranscriptHistoryDraft({
   compressionLevel,
   trimSilence,
   enableLongAudioChunking,
+  nvidiaNimTask,
+  mainstreamAsrModel,
   notify,
   prependHistoryItem,
   updateHistoryItem,
@@ -98,8 +115,20 @@ export function useTranscriptHistoryDraft({
       compressionLevel,
       trimSilence,
       enableLongAudioChunking,
+      nvidiaNimTask: provider === AsrProvider.NVIDIA_NIM ? nvidiaNimTask : undefined,
+      mainstreamAsrModel: provider === AsrProvider.MAINSTREAM ? mainstreamAsrModel : undefined,
     }),
-    [compressionLevel, context, enableItn, enableLongAudioChunking, language, provider, trimSilence],
+    [
+      compressionLevel,
+      context,
+      enableItn,
+      enableLongAudioChunking,
+      language,
+      mainstreamAsrModel,
+      nvidiaNimTask,
+      provider,
+      trimSilence,
+    ],
   );
 
   const createHistoryId = useCallback(() => {
@@ -124,8 +153,21 @@ export function useTranscriptHistoryDraft({
       compressionLevel,
       trimSilence,
       enableLongAudioChunking,
+      nvidiaNimTask: provider === AsrProvider.NVIDIA_NIM ? nvidiaNimTask : undefined,
+      mainstreamAsrModel: provider === AsrProvider.MAINSTREAM ? mainstreamAsrModel : undefined,
     }),
-    [compressionLevel, context, createHistoryId, enableItn, enableLongAudioChunking, language, provider, trimSilence],
+    [
+      compressionLevel,
+      context,
+      createHistoryId,
+      enableItn,
+      enableLongAudioChunking,
+      language,
+      mainstreamAsrModel,
+      nvidiaNimTask,
+      provider,
+      trimSilence,
+    ],
   );
 
   const createCurrentHistoryItem = useCallback(
@@ -150,8 +192,21 @@ export function useTranscriptHistoryDraft({
       compressionLevel,
       trimSilence,
       enableLongAudioChunking,
+      nvidiaNimTask,
+      mainstreamAsrModel,
     }),
-    [compressionLevel, context, createHistoryId, enableItn, enableLongAudioChunking, language, provider, trimSilence],
+    [
+      compressionLevel,
+      context,
+      createHistoryId,
+      enableItn,
+      enableLongAudioChunking,
+      language,
+      mainstreamAsrModel,
+      nvidiaNimTask,
+      provider,
+      trimSilence,
+    ],
   );
 
   const resetHistoryDraft = useCallback(() => {
@@ -217,11 +272,22 @@ export function useTranscriptHistoryDraft({
           compressionLevel,
           trimSilence,
           enableLongAudioChunking,
+          nvidiaNimTask,
+          mainstreamAsrModel,
         }),
       );
       return nextSegments;
     },
-    [compressionLevel, enableItn, enableLongAudioChunking, language, provider, trimSilence],
+    [
+      compressionLevel,
+      enableItn,
+      enableLongAudioChunking,
+      language,
+      mainstreamAsrModel,
+      nvidiaNimTask,
+      provider,
+      trimSilence,
+    ],
   );
 
   const getIsTranscriptionDirty = useCallback(
@@ -237,6 +303,8 @@ export function useTranscriptHistoryDraft({
           compressionLevel,
           trimSilence,
           enableLongAudioChunking,
+          nvidiaNimTask,
+          mainstreamAsrModel,
         },
         savedTranscriptSnapshot,
       ),
@@ -246,6 +314,8 @@ export function useTranscriptHistoryDraft({
       enableItn,
       enableLongAudioChunking,
       language,
+      mainstreamAsrModel,
+      nvidiaNimTask,
       provider,
       savedTranscriptSnapshot,
       trimSilence,

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Header } from './components/Header';
 import { AudioInputPanel, type AudioInputPanelHandle } from './components/AudioInputPanel';
 import { ResultDisplay } from './components/ResultDisplay';
@@ -8,21 +7,27 @@ import type { HistoryItem, Notification } from './types';
 import { Toast } from './components/Toast';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AudioPreview } from './components/AudioPreview';
+import { BenchmarkPanel } from './components/BenchmarkPanel';
 import { HistoryPanel } from './components/HistoryPanel';
-import { PipView } from './components/PipView';
 import { SessionParametersPanel } from './components/SessionParametersPanel';
 import { TranscriptionActions } from './components/TranscriptionActions';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useAudioDevices } from './hooks/useAudioDevices';
-import { useDocumentPip } from './hooks/useDocumentPip';
 import { useHistoryItems } from './hooks/useHistoryItems';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { useTranscriptionFlow } from './hooks/useTranscriptionFlow';
 import { languageDisplayNames } from './displayNames';
 import { clearCachedRecording, clearTranscriptionCache, getStorageEstimate } from './services/cacheService';
 import { getTranscriptSaveState } from './services/transcriptSaveState';
-import { isAsrProvider, isCompressionLevel, isLanguage } from './services/typeGuards';
+import {
+  isAsrProvider,
+  isCompressionLevel,
+  isLanguage,
+  isMainstreamAsrModel,
+  isNvidiaNimTask,
+} from './services/typeGuards';
 import { isSelectedAudioDeviceAvailable } from './services/audioDeviceUtils';
+import type { BenchmarkWorkspace } from './services/benchmarkTypes';
 
 export default function App() {
   const { asrConfig, resetSettings, setters, values } = useAppSettings();
@@ -48,13 +53,16 @@ export default function App() {
     setEnableItn,
     setEnableLongAudioChunking,
     setLanguage,
+    setMainstreamAsrModel,
+    setNvidiaNimTask,
     setSelectedDeviceId,
     setTrimSilence,
   } = setters;
 
   const [notification, setNotification] = useState<Notification | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isPipBusy, setIsPipBusy] = useState(false);
+  const [activeWorkspace, setActiveWorkspace] = useState<BenchmarkWorkspace>('studio');
+  const [isBenchmarkRunning, setIsBenchmarkRunning] = useState(false);
   const [storageEstimate, setStorageEstimate] = useState<{ usage: number; quota: number } | null>(null);
 
   const audioInputPanelRef = useRef<AudioInputPanelHandle>(null);
@@ -86,7 +94,6 @@ export default function App() {
     removeHistoryItems,
     removeAllHistory,
   } = useHistoryItems(notify);
-  const { isPipActive, isOpeningPip, pipContainer, togglePip } = useDocumentPip(notify);
 
   const refreshStorageEstimate = useCallback(async () => {
     setStorageEstimate(await getStorageEstimate());
@@ -122,7 +129,6 @@ export default function App() {
     handleKeyboardRecordingRelease,
     handleTranscriptionChange,
     handleSaveTranscriptionToHistory,
-    handleTranscriptionResultFromPip,
     restoreHistoryItem,
   } = useTranscriptionFlow({
     context,
@@ -139,10 +145,9 @@ export default function App() {
     updateHistoryItem,
     audioInputPanelRef,
   });
-  const isMainTranscriptionBusy = isLoading || isBatchProcessing;
-  const isTranscriptionBusy = isMainTranscriptionBusy || isPipBusy;
+  const isTranscriptionBusy = isLoading || isBatchProcessing;
   const isRecordingActive = isRecording || isRecordingBusy;
-  const isWorkspaceBusy = isTranscriptionBusy || isRecordingActive;
+  const isWorkspaceBusy = isTranscriptionBusy || isRecordingActive || isBenchmarkRunning;
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -169,7 +174,7 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' || isSpaceDown.current || isSettingsOpen) {
+      if (event.code !== 'Space' || isSpaceDown.current || isSettingsOpen || activeWorkspace !== 'studio') {
         return;
       }
 
@@ -204,7 +209,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handleKeyboardRecordingRelease, isRecordingActive, isSettingsOpen, isTranscriptionBusy]);
+  }, [activeWorkspace, handleKeyboardRecordingRelease, isRecordingActive, isSettingsOpen, isTranscriptionBusy]);
 
   const handleClearHistory = useCallback(async () => {
     const cleared = await removeAllHistory();
@@ -282,6 +287,12 @@ export default function App() {
       if (typeof item.enableLongAudioChunking === 'boolean') {
         setEnableLongAudioChunking(item.enableLongAudioChunking);
       }
+      if (isNvidiaNimTask(item.nvidiaNimTask)) {
+        setNvidiaNimTask(item.nvidiaNimTask);
+      }
+      if (isMainstreamAsrModel(item.mainstreamAsrModel)) {
+        setMainstreamAsrModel(item.mainstreamAsrModel);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     [
@@ -294,6 +305,8 @@ export default function App() {
       setEnableItn,
       setEnableLongAudioChunking,
       setLanguage,
+      setMainstreamAsrModel,
+      setNvidiaNimTask,
       setTrimSilence,
     ],
   );
@@ -303,24 +316,6 @@ export default function App() {
     setIsSettingsOpen(false);
     notify('已恢复默认设置', 'success');
   }, [notify, resetSettings]);
-
-  const handleTogglePip = useCallback(() => {
-    if (isOpeningPip) {
-      return;
-    }
-
-    if (isPipActive) {
-      togglePip();
-      return;
-    }
-
-    if (isMainTranscriptionBusy || isRecordingActive) {
-      notify('录音或识别进行中，暂不能打开输入法模式。', 'error');
-      return;
-    }
-
-    togglePip();
-  }, [isMainTranscriptionBusy, isOpeningPip, isPipActive, isRecordingActive, notify, togglePip]);
 
   const hasResult = Boolean(transcription || detectedLanguage);
   const hasActiveHistoryItem = activeHistoryItemId !== null && history.some((item) => item.id === activeHistoryItemId);
@@ -339,13 +334,27 @@ export default function App() {
       <div className="mx-auto flex h-full w-full min-w-0 max-w-[1600px] flex-col px-3 py-3 sm:px-5 lg:px-6">
         <Header
           onSettingsClick={() => setIsSettingsOpen(true)}
-          onPipClick={handleTogglePip}
           asrProvider={asrProvider}
           onAsrProviderChange={setAsrProvider}
+          activeWorkspace={activeWorkspace}
+          onWorkspaceChange={setActiveWorkspace}
           disabled={isWorkspaceBusy}
-          pipDisabled={isOpeningPip || (!isPipActive && (isMainTranscriptionBusy || isRecordingActive))}
         />
-        <main className="custom-scrollbar grid min-h-0 w-full min-w-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden py-3 lg:grid-cols-[22.5rem_minmax(0,1fr)] xl:gap-4">
+        {activeWorkspace === 'benchmark' ? (
+          <BenchmarkPanel
+            asrConfig={asrConfig}
+            language={language}
+            context={context}
+            enableItn={enableItn}
+            compressionLevel={compressionLevel}
+            trimSilence={trimSilence}
+            enableLongAudioChunking={enableLongAudioChunking}
+            disabled={isTranscriptionBusy || isRecordingActive}
+            notify={notify}
+            onRunningChange={setIsBenchmarkRunning}
+          />
+        ) : (
+          <main className="custom-scrollbar grid min-h-0 w-full min-w-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden py-3 lg:grid-cols-[22.5rem_minmax(0,1fr)] xl:gap-4">
           <aside className="w-full min-w-0 max-w-full space-y-3 lg:sticky lg:top-0 lg:self-start xl:space-y-4">
             <AudioInputPanel
               ref={audioInputPanelRef}
@@ -361,7 +370,7 @@ export default function App() {
               echoCancellation={echoCancellation}
               noiseSuppression={noiseSuppression}
               autoGainControl={autoGainControl}
-              allowRemoteUrl={asrProvider === AsrProvider.DOUBAO}
+              allowRemoteUrl={asrProvider === AsrProvider.DOUBAO || asrProvider === AsrProvider.MAINSTREAM}
             />
             <AudioPreview file={audioFile} onFileChange={changeAudioFile} disabled={isWorkspaceBusy} />
             <SessionParametersPanel
@@ -388,19 +397,17 @@ export default function App() {
               <div className="surface-panel min-w-0 px-3 py-2">
                 <p className="eyebrow">State</p>
                 <p className="mt-1 text-sm font-semibold text-content-100">
-                  {isPipBusy
-                    ? '输入法处理中'
-                    : isBatchProcessing
-                      ? '批处理中'
-                      : isLoading
-                        ? '识别中'
-                        : isRecording
-                          ? '录音中'
-                          : isRecordingBusy
-                            ? '录音处理中'
-                            : hasResult
-                              ? '已生成'
-                              : '待处理'}
+                  {isBatchProcessing
+                    ? '批处理中'
+                    : isLoading
+                      ? '识别中'
+                      : isRecording
+                        ? '录音中'
+                        : isRecordingBusy
+                          ? '录音处理中'
+                          : hasResult
+                            ? '已生成'
+                            : '待处理'}
                 </p>
               </div>
               <div className="surface-panel min-w-0 px-3 py-2">
@@ -438,7 +445,6 @@ export default function App() {
               isRecordingBusy={isRecordingBusy}
               queue={queue}
               isBatchProcessing={isBatchProcessing}
-              disabled={isPipBusy}
               realtimeElapsedTime={realtimeElapsedTime}
               transcription={transcription}
               onCancel={handleCancel}
@@ -459,7 +465,8 @@ export default function App() {
               disabled={isWorkspaceBusy}
             />
           </section>
-        </main>
+          </main>
+        )}
       </div>
       {notification && (
         <Toast message={notification.message} type={notification.type} onClose={() => setNotification(null)} />
@@ -480,24 +487,6 @@ export default function App() {
         onInstallApp={installApp}
         disabled={isWorkspaceBusy}
       />
-      {isPipActive &&
-        pipContainer &&
-        createPortal(
-          <PipView
-            onTranscriptionResult={handleTranscriptionResultFromPip}
-            context={context}
-            language={language}
-            enableItn={enableItn}
-            selectedDeviceId={selectedDeviceId}
-            echoCancellation={echoCancellation}
-            noiseSuppression={noiseSuppression}
-            autoGainControl={autoGainControl}
-            asrConfig={asrConfig}
-            disabled={isMainTranscriptionBusy || isRecordingActive}
-            onBusyChange={setIsPipBusy}
-          />,
-          pipContainer,
-        )}
     </div>
   );
 }

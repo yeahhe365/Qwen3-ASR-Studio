@@ -1,5 +1,7 @@
 import { DOUBAO_ASR_RESOURCE_ID, NVIDIA_NIM_ASR_MODEL } from '../constants';
-import { AsrProvider, type AsrProviderConfig, type CompressionLevel, type Language } from '../types';
+import { AsrProvider, NvidiaNimTask, type AsrProviderConfig, type CompressionLevel, type Language } from '../types';
+import { getMainstreamAsrModelDescriptor } from './providers/mainstreamAsrCatalog';
+import { normalizeMainstreamAsrBaseUrl } from './providers/mainstreamAsrProvider';
 import { normalizeNvidiaNimBaseUrl } from './providers/nvidiaNimProvider';
 
 type TranscriptionCacheSource =
@@ -21,6 +23,7 @@ type CreateTranscriptionCacheKeyOptions = {
   trimSilence: boolean;
   enableLongAudioChunking: boolean;
   context: string;
+  benchmarkOptions?: Record<string, unknown>;
 };
 
 export const createTranscriptionCacheSource = (fileHash: string, audioSourceUrl?: string): TranscriptionCacheSource => {
@@ -51,6 +54,17 @@ export const createProviderCacheDescriptor = (config: AsrProviderConfig) => {
       provider: config.provider,
       model: NVIDIA_NIM_ASR_MODEL,
       baseUrl: normalizeNvidiaNimBaseUrl(config.nvidiaNimBaseUrl),
+      task: config.nvidiaNimTask ?? NvidiaNimTask.TRANSCRIBE,
+    };
+  }
+
+  if (config.provider === AsrProvider.MAINSTREAM) {
+    const descriptor = getMainstreamAsrModelDescriptor(config.mainstreamAsrModel);
+    return {
+      provider: config.provider,
+      model: descriptor.modelName,
+      vendor: descriptor.vendor,
+      baseUrl: normalizeMainstreamAsrBaseUrl(config.mainstreamAsrBaseUrl),
     };
   }
 
@@ -68,9 +82,10 @@ export const createTranscriptionCacheKey = ({
   trimSilence,
   enableLongAudioChunking,
   context,
+  benchmarkOptions,
 }: CreateTranscriptionCacheKeyOptions) => {
   return JSON.stringify({
-    version: 2,
+    version: 3,
     source,
     provider: createProviderCacheDescriptor(config),
     options: {
@@ -80,6 +95,7 @@ export const createTranscriptionCacheKey = ({
       trimSilence,
       enableLongAudioChunking,
       context: context.trim(),
+      benchmarkOptions: benchmarkOptions ?? null,
     },
   });
 };

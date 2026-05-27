@@ -7,7 +7,14 @@ import {
   createTranscriptionCacheKey,
   createTranscriptionCacheSource,
 } from '../services/transcriptionCacheKey.ts';
-import { AsrProvider, CompressionLevel, Language, type AsrProviderConfig } from '../types.ts';
+import {
+  AsrProvider,
+  CompressionLevel,
+  Language,
+  MainstreamAsrModel,
+  NvidiaNimTask,
+  type AsrProviderConfig,
+} from '../types.ts';
 
 const createConfig = (overrides: Partial<AsrProviderConfig> = {}): AsrProviderConfig => ({
   provider: AsrProvider.QWEN,
@@ -17,6 +24,10 @@ const createConfig = (overrides: Partial<AsrProviderConfig> = {}): AsrProviderCo
   geminiApiKey: '',
   nvidiaNimBaseUrl: '',
   nvidiaNimApiKey: '',
+  nvidiaNimTask: NvidiaNimTask.TRANSCRIBE,
+  mainstreamAsrModel: MainstreamAsrModel.OPENAI_GPT_4O_TRANSCRIBE,
+  mainstreamAsrApiKey: '',
+  mainstreamAsrBaseUrl: '',
   ...overrides,
 });
 
@@ -61,6 +72,21 @@ describe('transcription cache keys', () => {
         provider: AsrProvider.NVIDIA_NIM,
         model: NVIDIA_NIM_ASR_MODEL,
         baseUrl: 'https://nim.example.com',
+        task: NvidiaNimTask.TRANSCRIBE,
+      },
+    );
+    assert.deepEqual(
+      createProviderCacheDescriptor(
+        createConfig({
+          provider: AsrProvider.NVIDIA_NIM,
+          nvidiaNimTask: NvidiaNimTask.TRANSLATE,
+        }),
+      ),
+      {
+        provider: AsrProvider.NVIDIA_NIM,
+        model: NVIDIA_NIM_ASR_MODEL,
+        baseUrl: '',
+        task: NvidiaNimTask.TRANSLATE,
       },
     );
   });

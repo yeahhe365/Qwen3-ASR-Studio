@@ -26,6 +26,21 @@ export type ProviderDiagnosticReport = {
   checks: ProviderDiagnosticCheck[];
 };
 
+export type ProviderCapabilityStatus = 'supported' | 'partial' | 'planned' | 'unsupported';
+
+export type ProviderCapabilityMatrixCell = {
+  status: ProviderCapabilityStatus;
+  label: string;
+  detail: string;
+};
+
+export type ProviderCapabilityMatrixRow = {
+  id: string;
+  label: string;
+  description: string;
+  cells: Record<AsrProvider, ProviderCapabilityMatrixCell>;
+};
+
 export type ProviderTranscribe = (
   audioFile: File,
   context: string,

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { AsrProvider, CompressionLevel, Language } from '../types';
+import { AsrProvider, CompressionLevel, Language, MainstreamAsrModel, NvidiaNimTask } from '../types';
 import type { AsrProviderConfig, Theme } from '../types';
 import {
   createEnumParser,
@@ -30,6 +30,10 @@ export type AppSettingsValues = {
   geminiApiKey: string;
   nvidiaNimBaseUrl: string;
   nvidiaNimApiKey: string;
+  nvidiaNimTask: NvidiaNimTask;
+  mainstreamAsrModel: MainstreamAsrModel;
+  mainstreamAsrApiKey: string;
+  mainstreamAsrBaseUrl: string;
 };
 
 export type AppSettingsSetters = {
@@ -52,6 +56,10 @@ export type AppSettingsSetters = {
   setGeminiApiKey: Dispatch<SetStateAction<string>>;
   setNvidiaNimBaseUrl: Dispatch<SetStateAction<string>>;
   setNvidiaNimApiKey: Dispatch<SetStateAction<string>>;
+  setNvidiaNimTask: Dispatch<SetStateAction<NvidiaNimTask>>;
+  setMainstreamAsrModel: Dispatch<SetStateAction<MainstreamAsrModel>>;
+  setMainstreamAsrApiKey: Dispatch<SetStateAction<string>>;
+  setMainstreamAsrBaseUrl: Dispatch<SetStateAction<string>>;
 };
 
 const DEFAULT_SETTINGS: AppSettingsValues = {
@@ -74,11 +82,17 @@ const DEFAULT_SETTINGS: AppSettingsValues = {
   geminiApiKey: '',
   nvidiaNimBaseUrl: '',
   nvidiaNimApiKey: '',
+  nvidiaNimTask: NvidiaNimTask.TRANSCRIBE,
+  mainstreamAsrModel: MainstreamAsrModel.OPENAI_GPT_4O_TRANSCRIBE,
+  mainstreamAsrApiKey: '',
+  mainstreamAsrBaseUrl: '',
 };
 
 const parseLanguage = createEnumParser(Language, DEFAULT_SETTINGS.language);
 const parseCompressionLevel = createEnumParser(CompressionLevel, DEFAULT_SETTINGS.compressionLevel);
 const parseAsrProvider = createEnumParser(AsrProvider, DEFAULT_SETTINGS.asrProvider);
+const parseNvidiaNimTask = createEnumParser(NvidiaNimTask, DEFAULT_SETTINGS.nvidiaNimTask);
+const parseMainstreamAsrModel = createEnumParser(MainstreamAsrModel, DEFAULT_SETTINGS.mainstreamAsrModel);
 
 export function useAppSettings() {
   const [context, setContext] = usePersistentState('context', DEFAULT_SETTINGS.context);
@@ -153,6 +167,24 @@ export function useAppSettings() {
     DEFAULT_SETTINGS.nvidiaNimBaseUrl,
   );
   const [nvidiaNimApiKey, setNvidiaNimApiKey] = usePersistentState('nvidiaNimApiKey', DEFAULT_SETTINGS.nvidiaNimApiKey);
+  const [nvidiaNimTask, setNvidiaNimTask] = usePersistentState('nvidiaNimTask', DEFAULT_SETTINGS.nvidiaNimTask, {
+    parse: parseNvidiaNimTask,
+  });
+  const [mainstreamAsrModel, setMainstreamAsrModel] = usePersistentState(
+    'mainstreamAsrModel',
+    DEFAULT_SETTINGS.mainstreamAsrModel,
+    {
+      parse: parseMainstreamAsrModel,
+    },
+  );
+  const [mainstreamAsrApiKey, setMainstreamAsrApiKey] = usePersistentState(
+    'mainstreamAsrApiKey',
+    DEFAULT_SETTINGS.mainstreamAsrApiKey,
+  );
+  const [mainstreamAsrBaseUrl, setMainstreamAsrBaseUrl] = usePersistentState(
+    'mainstreamAsrBaseUrl',
+    DEFAULT_SETTINGS.mainstreamAsrBaseUrl,
+  );
 
   const asrConfig: AsrProviderConfig = useMemo(
     () => ({
@@ -163,8 +195,24 @@ export function useAppSettings() {
       geminiApiKey,
       nvidiaNimBaseUrl,
       nvidiaNimApiKey,
+      nvidiaNimTask,
+      mainstreamAsrModel,
+      mainstreamAsrApiKey,
+      mainstreamAsrBaseUrl,
     }),
-    [asrProvider, doubaoAccessKey, doubaoApiKey, geminiApiKey, nvidiaNimApiKey, nvidiaNimBaseUrl, qwenApiKey],
+    [
+      asrProvider,
+      doubaoAccessKey,
+      doubaoApiKey,
+      geminiApiKey,
+      mainstreamAsrApiKey,
+      mainstreamAsrBaseUrl,
+      mainstreamAsrModel,
+      nvidiaNimApiKey,
+      nvidiaNimBaseUrl,
+      nvidiaNimTask,
+      qwenApiKey,
+    ],
   );
 
   const resetSettings = useCallback(() => {
@@ -187,6 +235,10 @@ export function useAppSettings() {
     setGeminiApiKey(DEFAULT_SETTINGS.geminiApiKey);
     setNvidiaNimBaseUrl(DEFAULT_SETTINGS.nvidiaNimBaseUrl);
     setNvidiaNimApiKey(DEFAULT_SETTINGS.nvidiaNimApiKey);
+    setNvidiaNimTask(DEFAULT_SETTINGS.nvidiaNimTask);
+    setMainstreamAsrModel(DEFAULT_SETTINGS.mainstreamAsrModel);
+    setMainstreamAsrApiKey(DEFAULT_SETTINGS.mainstreamAsrApiKey);
+    setMainstreamAsrBaseUrl(DEFAULT_SETTINGS.mainstreamAsrBaseUrl);
   }, [
     setAsrProvider,
     setAutoCopy,
@@ -200,9 +252,13 @@ export function useAppSettings() {
     setEnableItn,
     setGeminiApiKey,
     setLanguage,
+    setMainstreamAsrApiKey,
+    setMainstreamAsrBaseUrl,
+    setMainstreamAsrModel,
     setNoiseSuppression,
     setNvidiaNimApiKey,
     setNvidiaNimBaseUrl,
+    setNvidiaNimTask,
     setQwenApiKey,
     setSelectedDeviceId,
     setTheme,
@@ -223,9 +279,13 @@ export function useAppSettings() {
       enableLongAudioChunking,
       geminiApiKey,
       language,
+      mainstreamAsrApiKey,
+      mainstreamAsrBaseUrl,
+      mainstreamAsrModel,
       noiseSuppression,
       nvidiaNimApiKey,
       nvidiaNimBaseUrl,
+      nvidiaNimTask,
       qwenApiKey,
       selectedDeviceId,
       theme,
@@ -244,9 +304,13 @@ export function useAppSettings() {
       enableLongAudioChunking,
       geminiApiKey,
       language,
+      mainstreamAsrApiKey,
+      mainstreamAsrBaseUrl,
+      mainstreamAsrModel,
       noiseSuppression,
       nvidiaNimApiKey,
       nvidiaNimBaseUrl,
+      nvidiaNimTask,
       qwenApiKey,
       selectedDeviceId,
       theme,
@@ -268,9 +332,13 @@ export function useAppSettings() {
       setEnableItn,
       setGeminiApiKey,
       setLanguage,
+      setMainstreamAsrApiKey,
+      setMainstreamAsrBaseUrl,
+      setMainstreamAsrModel,
       setNoiseSuppression,
       setNvidiaNimApiKey,
       setNvidiaNimBaseUrl,
+      setNvidiaNimTask,
       setQwenApiKey,
       setSelectedDeviceId,
       setTheme,
@@ -289,9 +357,13 @@ export function useAppSettings() {
       setEnableItn,
       setGeminiApiKey,
       setLanguage,
+      setMainstreamAsrApiKey,
+      setMainstreamAsrBaseUrl,
+      setMainstreamAsrModel,
       setNoiseSuppression,
       setNvidiaNimApiKey,
       setNvidiaNimBaseUrl,
+      setNvidiaNimTask,
       setQwenApiKey,
       setSelectedDeviceId,
       setTheme,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { normalizeStoredHistoryItems } from '../services/historyStorage.ts';
-import { CompressionLevel, Language } from '../types.ts';
+import { CompressionLevel, Language, NvidiaNimTask } from '../types.ts';
 
 describe('history storage normalization', () => {
   test('normalizes malformed persisted history records', () => {
@@ -23,6 +23,7 @@ describe('history storage normalization', () => {
         compressionLevel: CompressionLevel.MEDIUM,
         trimSilence: false,
         enableLongAudioChunking: true,
+        nvidiaNimTask: NvidiaNimTask.TRANSLATE,
         segments: [
           {
             id: 42,
@@ -53,6 +54,7 @@ describe('history storage normalization', () => {
     assert.equal(items[0].compressionLevel, CompressionLevel.MEDIUM);
     assert.equal(items[0].trimSilence, false);
     assert.equal(items[0].enableLongAudioChunking, true);
+    assert.equal(items[0].nvidiaNimTask, NvidiaNimTask.TRANSLATE);
     assert.deepEqual(items[0].segments, [
       {
         id: 'segment-1',

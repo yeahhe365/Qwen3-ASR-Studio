@@ -1,27 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardIcon } from './icons/KeyboardIcon';
 import { LogoIcon } from './icons/LogoIcon';
 import { ServerIcon } from './icons/ServerIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
+import { ToolboxIcon } from './icons/ToolboxIcon';
 import { AsrProvider } from '../types';
 import { asrProviderMenuOptions } from '../services/providerRegistry';
+import type { BenchmarkWorkspace } from '../services/benchmarkTypes';
 
 interface HeaderProps {
   onSettingsClick: () => void;
-  onPipClick: () => void;
   asrProvider: AsrProvider;
   onAsrProviderChange: (provider: AsrProvider) => void;
+  activeWorkspace: BenchmarkWorkspace;
+  onWorkspaceChange: (workspace: BenchmarkWorkspace) => void;
   disabled?: boolean;
-  pipDisabled?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onSettingsClick,
-  onPipClick,
   asrProvider,
   onAsrProviderChange,
+  activeWorkspace,
+  onWorkspaceChange,
   disabled,
-  pipDisabled,
 }) => {
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
@@ -78,6 +79,34 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-1 sm:justify-end">
+        <div className="grid h-11 flex-shrink-0 grid-cols-2 gap-1 rounded-md bg-base-100 p-1 ring-1 ring-base-300">
+          {[
+            { id: 'studio' as const, label: '转写', Icon: ServerIcon },
+            { id: 'benchmark' as const, label: 'Benchmark', Icon: ToolboxIcon },
+          ].map((item) => {
+            const isActive = activeWorkspace === item.id;
+            const Icon = item.Icon;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  if (!disabled) {
+                    onWorkspaceChange(item.id);
+                  }
+                }}
+                disabled={disabled}
+                className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 ${
+                  isActive ? 'bg-content-100 text-base-200 shadow-sm' : 'text-content-200 hover:text-content-100'
+                }`}
+              >
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div ref={modelSelectorRef} className="relative min-w-0 flex-1 sm:max-w-[28rem]">
           <button
             type="button"
@@ -157,16 +186,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
-        <button
-          onClick={onPipClick}
-          disabled={pipDisabled ?? disabled}
-          title="输入法模式 (画中画)"
-          aria-label="打开输入法模式"
-          className="secondary-action h-11 flex-shrink-0 px-3"
-        >
-          <KeyboardIcon className="h-5 w-5" />
-          <span className="hidden md:inline">输入法</span>
-        </button>
         <button
           onClick={onSettingsClick}
           title="设置"

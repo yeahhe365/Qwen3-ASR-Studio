@@ -7,7 +7,7 @@ import {
   getHistoryExportMimeType,
 } from '../services/historyExport.ts';
 import { parseHistoryImportJson } from '../services/historyImport.ts';
-import { AsrProvider, CompressionLevel, Language, type HistoryItem } from '../types.ts';
+import { AsrProvider, CompressionLevel, Language, MainstreamAsrModel, NvidiaNimTask, type HistoryItem } from '../types.ts';
 
 const createHistoryItem = (overrides: Partial<HistoryItem> = {}): HistoryItem => ({
   id: 101,
@@ -62,6 +62,7 @@ describe('historyExport', () => {
     assert.match(markdown, /- 压缩：中等/);
     assert.match(markdown, /- 静音裁剪：开启/);
     assert.match(markdown, /- 长音频切片：开启/);
+    assert.doesNotMatch(markdown, /NVIDIA 任务/);
     assert.match(markdown, /- 分段：2 段/);
     assert.match(markdown, /- 音频 URL：https:\/\/example\.com\/audio\/meeting\.wav/);
     assert.match(markdown, /### 上下文\n\n项目名 Codex Studio，人名 Jones/);
@@ -93,6 +94,18 @@ describe('historyExport', () => {
     assert.doesNotMatch(markdown, /音频 URL/);
   });
 
+  test('includes NVIDIA task metadata when present', () => {
+    const item = createHistoryItem({
+      provider: AsrProvider.NVIDIA_NIM,
+      nvidiaNimTask: NvidiaNimTask.TRANSLATE,
+    });
+    const exportedItems = createSerializableHistoryItems([item]);
+    const markdown = createHistoryExport([item], 'md');
+
+    assert.equal(exportedItems[0].nvidiaNimTask, NvidiaNimTask.TRANSLATE);
+    assert.match(markdown, /- NVIDIA 任务：英译/);
+  });
+
   test('uses stable MIME types and serializable fallbacks', () => {
     const serializableItems = createSerializableHistoryItems([
       createHistoryItem({
@@ -103,6 +116,7 @@ describe('historyExport', () => {
         provider: undefined,
         language: undefined,
         compressionLevel: undefined,
+        nvidiaNimTask: undefined,
       }),
     ]);
 
@@ -112,5 +126,6 @@ describe('historyExport', () => {
     assert.equal(serializableItems[0].provider, null);
     assert.equal(serializableItems[0].language, null);
     assert.equal(serializableItems[0].compressionLevel, null);
+    assert.equal(serializableItems[0].nvidiaNimTask, null);
   });
 });

@@ -2,7 +2,7 @@ import type { HistoryItem } from '../types';
 import { getJsonBoolean, getJsonNonnegativeNumber, getJsonString, isJsonRecord } from './jsonValue';
 import { normalizeHistorySegments } from './historySegments';
 import { isValidHttpUrl } from './remoteAudioFile';
-import { isAsrProvider, isCompressionLevel, isLanguage } from './typeGuards';
+import { isAsrProvider, isCompressionLevel, isLanguage, isMainstreamAsrModel, isNvidiaNimTask } from './typeGuards';
 
 const getTimestamp = (value: unknown) => {
   const timestamp = getJsonNonnegativeNumber(value);
@@ -36,6 +36,8 @@ export const normalizeStoredHistoryItem = (value: unknown): HistoryItem | null =
   const provider = isAsrProvider(value.provider) ? value.provider : undefined;
   const language = isLanguage(value.language) ? value.language : undefined;
   const compressionLevel = isCompressionLevel(value.compressionLevel) ? value.compressionLevel : undefined;
+  const nvidiaNimTask = isNvidiaNimTask(value.nvidiaNimTask) ? value.nvidiaNimTask : undefined;
+  const mainstreamAsrModel = isMainstreamAsrModel(value.mainstreamAsrModel) ? value.mainstreamAsrModel : undefined;
 
   return {
     id,
@@ -53,6 +55,8 @@ export const normalizeStoredHistoryItem = (value: unknown): HistoryItem | null =
     compressionLevel,
     trimSilence: getJsonBoolean(value.trimSilence),
     enableLongAudioChunking: getJsonBoolean(value.enableLongAudioChunking),
+    nvidiaNimTask,
+    mainstreamAsrModel,
   };
 };
 

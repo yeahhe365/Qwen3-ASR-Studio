@@ -98,6 +98,7 @@ describe('transcribeWithDoubao', () => {
     assert.equal(submitBody.request.model_name, DOUBAO_ASR_MODEL);
     assert.equal(submitBody.request.enable_itn, true);
     assert.equal(submitBody.request.enable_punc, true);
+    assert.equal(submitBody.request.show_utterances, true);
 
     const queryHeaders = calls[1].init?.headers as Record<string, string>;
     assert.equal(String(calls[1].input), DOUBAO_ASR_QUERY_URL);
@@ -141,6 +142,83 @@ describe('transcribeWithDoubao', () => {
     const submitBody = JSON.parse(String(calls[0].init?.body));
     assert.equal(submitBody.audio.url, 'https://example.com/meeting.wav');
     assert.equal(submitBody.audio.data, undefined);
+  });
+
+  test('parses utterances into timestamped segments', async () => {
+    globalThis.FileReader = MockFileReader as unknown as typeof FileReader;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      if (String(input) === DOUBAO_ASR_SUBMIT_URL) {
+        return new Response('{}', {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Status-Code': '20000000',
+          },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          result: {
+            text: '第一段 第二段',
+            language: 'zh-CN',
+            utterances: [
+              {
+                text: ' 第一段 ',
+                start_time: 0,
+                end_time: 1200,
+                speaker_id: 'spk-1',
+                confidence: '0.98',
+              },
+              {
+                text: '第二段',
+                start_time: 1300,
+                end_time: 2800,
+                speaker: 2,
+              },
+            ],
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Status-Code': '20000000',
+          },
+        },
+      );
+    }) as typeof fetch;
+
+    const file = new File(['audio'], 'meeting.wav', { type: 'audio/wav' });
+    const result = await transcribeWithDoubao(
+      file,
+      '',
+      Language.AUTO,
+      false,
+      { apiKey: 'doubao-key', accessKey: '' },
+      new AbortController().signal,
+    );
+
+    assert.equal(result.transcription, '第一段 第二段');
+    assert.equal(result.detectedLanguage, 'zh-CN');
+    assert.deepEqual(result.segments, [
+      {
+        id: 'utterance-1',
+        text: '第一段',
+        startTime: 0,
+        endTime: 1.2,
+        speaker: 'spk-1',
+        confidence: 0.98,
+      },
+      {
+        id: 'utterance-2',
+        text: '第二段',
+        startTime: 1.3,
+        endTime: 2.8,
+        speaker: '2',
+        confidence: undefined,
+      },
+    ]);
   });
 
   test('rejects unsupported recording file formats before submit', async () => {
